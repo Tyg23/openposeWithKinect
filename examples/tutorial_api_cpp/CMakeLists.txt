@@ -20,6 +20,12 @@ set(EXAMPLE_FILES
 
 include(${CMAKE_SOURCE_DIR}/cmake/Utils.cmake)
 
+find_package(k4a REQUIRED)
+if(k4a_FOUND)
+message(STATUS "Kinect SDK found")
+endif()
+
+
 foreach(EXAMPLE_FILE ${EXAMPLE_FILES})
 
   get_filename_component(SOURCE_NAME ${EXAMPLE_FILE} NAME_WE)
@@ -32,7 +38,7 @@ foreach(EXAMPLE_FILE ${EXAMPLE_FILES})
 
   message(STATUS "Adding Example ${EXE_NAME}")
   add_executable(${EXE_NAME} ${EXAMPLE_FILE})
-  target_link_libraries(${EXE_NAME} openpose ${examples_3rdparty_libraries})
+  target_link_libraries(${EXE_NAME} openpose k4a::k4a ${examples_3rdparty_libraries})
 
   if (WIN32)
     set_property(TARGET ${EXE_NAME} PROPERTY FOLDER "Examples/Tutorial/C++ API")
