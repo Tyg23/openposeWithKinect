@@ -3,28 +3,28 @@
 #include "Registration.h"
 #include "tools/nodeSampler.h"
 
-typedef Eigen::SparseMatrix<Scalar> SparseMatrix;
+typedef Eigen::SparseMatrix<fScalar> SparseMatrix;
 
 class NonRigidreg : public Registration
 {
 public:
     NonRigidreg();
     ~NonRigidreg();
-    virtual Scalar DoNonRigid();
+    virtual fScalar DoNonRigid();
     virtual void Initialize();
 
 private:
-    Scalar welsch_error(Scalar nu1, Scalar nu2);
-    Scalar welsch_energy(VectorX& r, Scalar p);
-    void welsch_weight(VectorX& r, Scalar p);
+    fScalar welsch_error(fScalar nu1, fScalar nu2);
+    fScalar welsch_energy(VectorX& r, fScalar p);
+    void welsch_weight(VectorX& r, fScalar p);
 
     void LBFGS(int iter, MatrixXX & dir) const;
-    int QNSolver(Scalar& data_err, Scalar& smooth_err, Scalar& orth_err);
+    int QNSolver(fScalar& data_err, fScalar& smooth_err, fScalar& orth_err);
 
-    Scalar sample_energy(Scalar& data_err, Scalar& smooth_err, Scalar& orth_err);
+    fScalar sample_energy(fScalar& data_err, fScalar& smooth_err, fScalar& orth_err);
 	void   sample_gradient();
     void   update_R();
-    Scalar SetMeshPoints(Mesh* mesh, const MatrixXX & target, MatrixXX& cur_v);
+    fScalar SetMeshPoints(Mesh* mesh, const MatrixXX & target, MatrixXX& cur_v);
 
     Eigen::SimplicialCholesky<SparseMatrix>* ldlt_;
 
@@ -57,7 +57,7 @@ private:
     SparseMatrix    Sub_PV_;    // (k * 4r)
     MatrixXX        Sub_UP_;    // (k * 3)
 
-    Scalar          ori_alpha;
-    Scalar          ori_beta;
+    fScalar          ori_alpha;
+    fScalar          ori_beta;
 };
 #endif

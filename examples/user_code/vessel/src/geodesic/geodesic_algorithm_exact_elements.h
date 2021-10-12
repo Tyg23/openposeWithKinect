@@ -26,7 +26,7 @@ namespace geodesic {
 			left_vertex,
 			right_vertex;
 
-        Scalar top_alpha,
+        fScalar top_alpha,
 			left_alpha,
 			right_alpha; // Angles
 
@@ -41,29 +41,29 @@ namespace geodesic {
 		Interval() {};
 		~Interval() {};
 
-        Scalar& start() { return m_start; };
-        Scalar& stop() { return m_stop; };
-        Scalar& d() { return m_d; };
-        Scalar& pseudo_x() { return m_pseudo_x; };
-        Scalar& pseudo_y() { return m_pseudo_y; };
+        fScalar& start() { return m_start; };
+        fScalar& stop() { return m_stop; };
+        fScalar& d() { return m_d; };
+        fScalar& pseudo_x() { return m_pseudo_x; };
+        fScalar& pseudo_y() { return m_pseudo_y; };
 
-        Scalar& sp() { return m_sp; };
+        fScalar& sp() { return m_sp; };
 
-        Scalar& shortest_distance() { return m_shortest_distance; }
+        fScalar& shortest_distance() { return m_shortest_distance; }
 
 		interval_pointer& next() { return m_next; };
 		interval_pointer& previous() { return m_previous; };
 
 	private:
-        Scalar m_start;						//initial point of the interval on the edge
-        Scalar m_stop;
-        Scalar m_d;							//distance from the source to the pseudo-source
-        Scalar m_pseudo_x;					//coordinates of the pseudo-source in the local coordinate system
-        Scalar m_pseudo_y;					//y-coordinate should be always negative
+        fScalar m_start;						//initial point of the interval on the edge
+        fScalar m_stop;
+        fScalar m_d;							//distance from the source to the pseudo-source
+        fScalar m_pseudo_x;					//coordinates of the pseudo-source in the local coordinate system
+        fScalar m_pseudo_y;					//y-coordinate should be always negative
 
-        Scalar m_sp;                        //separating point
+        fScalar m_sp;                        //separating point
 
-        Scalar m_shortest_distance;         //shortest distance from the interval to top_vertex, for numerical precision issue
+        fScalar m_shortest_distance;         //shortest distance from the interval to top_vertex, for numerical precision issue
 
 		interval_pointer m_next;			//pointer to the next interval in the list	
 		interval_pointer m_previous;        //pointer to the previous interval in the list
@@ -81,10 +81,10 @@ namespace geodesic {
         vertex_pointer& start_vertex() { return m_start; }
         edge_pointer& edge() { return m_edge; }
 
-        Scalar& sp() { return m_sp; };
+        fScalar& sp() { return m_sp; };
 
-        Scalar& pseudo_x() { return m_pseudo_x; };
-        Scalar& pseudo_y() { return m_pseudo_y; };
+        fScalar& pseudo_x() { return m_pseudo_x; };
+        fScalar& pseudo_y() { return m_pseudo_y; };
 
 		// List operation
 		interval_pointer& begin() { return m_begin; }
@@ -141,10 +141,10 @@ namespace geodesic {
 		interval_pointer m_begin;
 		interval_pointer m_end;
 
-        Scalar m_pseudo_x;
-        Scalar m_pseudo_y;
+        fScalar m_pseudo_x;
+        fScalar m_pseudo_y;
 
-        Scalar m_sp;                        //separating point
+        fScalar m_sp;                        //separating point
 	};
 
 }		//geodesic

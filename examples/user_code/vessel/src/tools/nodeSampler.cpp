@@ -7,9 +7,9 @@
 namespace svr
 {
     //	Define helper functions
-    static auto square = [](const Scalar argu) { return argu * argu; };
-    static auto cube = [](const Scalar argu) { return argu * argu * argu; };
-    static auto max = [](const Scalar lhs, const Scalar rhs) { return lhs > rhs ? lhs : rhs; };
+    static auto square = [](const fScalar argu) { return argu * argu; };
+    static auto cube = [](const fScalar argu) { return argu * argu * argu; };
+    static auto max = [](const fScalar lhs, const fScalar rhs) { return lhs > rhs ? lhs : rhs; };
 
     //------------------------------------------------------------------------
     //	Node Sampling based on geodesic distance metric
@@ -21,7 +21,7 @@ namespace svr
 
 
     // Local geodesic calculation
-    Scalar nodeSampler::sampleAndconstuct(Mesh &mesh, Scalar sampleRadiusRatio, sampleAxis axis)
+    fScalar nodeSampler::sampleAndconstuct(Mesh &mesh, fScalar sampleRadiusRatio, sampleAxis axis)
     {
         //	Save numbers of vertex and edge
         m_meshVertexNum = mesh.n_vertices();
@@ -32,7 +32,7 @@ namespace svr
         for (size_t i = 0; i < m_meshEdgeNum; ++i)
         {
             OpenMesh::EdgeHandle eh = mesh.edge_handle(i);
-            Scalar edgeLen = mesh.calc_edge_length(eh);
+            fScalar edgeLen = mesh.calc_edge_length(eh);
             m_averageEdgeLen += edgeLen;
         }
         m_averageEdgeLen /= m_meshEdgeNum;//计算mesh的边长平均值
@@ -78,11 +78,11 @@ namespace svr
                 for(size_t i = 0; i < neighbor_verts.size(); i++)
                 {
                     int neighIdx = neighbor_verts[i];
-                    Scalar geodist = mesh.data(mesh.vertex_handle(neighIdx)).geodesic_distance;
+                    fScalar geodist = mesh.data(mesh.vertex_handle(neighIdx)).geodesic_distance;
                     if(geodist < m_sampleRadius)
                     {
-                        Scalar weight = std::pow(1-std::pow(geodist/m_sampleRadius, 2), 3);
-                        m_vertexGraph.at(neighIdx).emplace(std::pair<int, Scalar>(cur_node_idx, weight));
+                        fScalar weight = std::pow(1-std::pow(geodist/m_sampleRadius, 2), 3);
+                        m_vertexGraph.at(neighIdx).emplace(std::pair<int, fScalar>(cur_node_idx, weight));
                         weight_sum[neighIdx] += weight;
                     }
                 }
@@ -101,7 +101,7 @@ namespace svr
                     size_t neighNodeIdx = neighNode.first;
                     if(nodeIdx != neighNodeIdx)
                     {
-                        m_nodeGraph.at(nodeIdx).emplace(std::pair<int, Scalar>(neighNodeIdx, 1.0));
+                        m_nodeGraph.at(nodeIdx).emplace(std::pair<int, fScalar>(neighNodeIdx, 1.0));
                     }
                 }
                 m_vertexGraph.at(vertexIdx).at(nodeIdx) /= weight_sum[vertexIdx];
@@ -112,10 +112,10 @@ namespace svr
 
 
 
-    void nodeSampler::initWeight(Eigen::SparseMatrix<Scalar>& matPV, MatrixXX & matP,
-        Eigen::SparseMatrix<Scalar>& matB, MatrixXX& matD, VectorX& smoothw)
+    void nodeSampler::initWeight(Eigen::SparseMatrix<fScalar>& matPV, MatrixXX & matP,
+        Eigen::SparseMatrix<fScalar>& matB, MatrixXX& matD, VectorX& smoothw)
     {
-        std::vector<Eigen::Triplet<Scalar>> coeff;
+        std::vector<Eigen::Triplet<fScalar>> coeff;
         matP.setZero();
         Eigen::VectorXi nonzero_num = Eigen::VectorXi::Zero(m_mesh->n_vertices());
         // data coeff
@@ -125,12 +125,12 @@ namespace svr
             for (auto &eachNeighbor : m_vertexGraph[vertexIdx])
             {
                 size_t nodeIdx = eachNeighbor.first;
-                Scalar weight = m_vertexGraph.at(vertexIdx).at(nodeIdx);
+                fScalar weight = m_vertexGraph.at(vertexIdx).at(nodeIdx);
                 Mesh::Point pj = m_mesh->point(m_mesh->vertex_handle(getNodeVertexIdx(nodeIdx)));
-                coeff.push_back(Eigen::Triplet<Scalar>(vertexIdx, nodeIdx * 4, weight * (vi[0] - pj[0])));
-                coeff.push_back(Eigen::Triplet<Scalar>(vertexIdx, nodeIdx * 4 + 1, weight * (vi[1] - pj[1])));
-                coeff.push_back(Eigen::Triplet<Scalar>(vertexIdx, nodeIdx * 4 + 2, weight * (vi[2] - pj[2])));
-                coeff.push_back(Eigen::Triplet<Scalar>(vertexIdx, nodeIdx * 4 + 3, weight * 1.0));
+                coeff.push_back(Eigen::Triplet<fScalar>(vertexIdx, nodeIdx * 4, weight * (vi[0] - pj[0])));
+                coeff.push_back(Eigen::Triplet<fScalar>(vertexIdx, nodeIdx * 4 + 1, weight * (vi[1] - pj[1])));
+                coeff.push_back(Eigen::Triplet<fScalar>(vertexIdx, nodeIdx * 4 + 2, weight * (vi[2] - pj[2])));
+                coeff.push_back(Eigen::Triplet<fScalar>(vertexIdx, nodeIdx * 4 + 3, weight * 1.0));
                 matP(vertexIdx, 0) += weight * pj[0];
                 matP(vertexIdx, 1) += weight * pj[1];
                 matP(vertexIdx, 2) += weight * pj[2];
@@ -160,13 +160,13 @@ namespace svr
                 Mesh::Point dv = v0 - v1;
                 int k = edge_id;
 
-                coeff.push_back(Eigen::Triplet<Scalar>(k, neighborIdx * 4, dv[0]));
-                coeff.push_back(Eigen::Triplet<Scalar>(k, neighborIdx * 4 + 1, dv[1]));
-                coeff.push_back(Eigen::Triplet<Scalar>(k, neighborIdx * 4 + 2, dv[2]));
-                coeff.push_back(Eigen::Triplet<Scalar>(k, neighborIdx * 4 + 3, 1.0));
-                coeff.push_back(Eigen::Triplet<Scalar>(k, nodeIdx * 4 + 3, -1.0));
+                coeff.push_back(Eigen::Triplet<fScalar>(k, neighborIdx * 4, dv[0]));
+                coeff.push_back(Eigen::Triplet<fScalar>(k, neighborIdx * 4 + 1, dv[1]));
+                coeff.push_back(Eigen::Triplet<fScalar>(k, neighborIdx * 4 + 2, dv[2]));
+                coeff.push_back(Eigen::Triplet<fScalar>(k, neighborIdx * 4 + 3, 1.0));
+                coeff.push_back(Eigen::Triplet<fScalar>(k, nodeIdx * 4 + 3, -1.0));
 
-                Scalar dist = dv.norm();
+                fScalar dist = dv.norm();
                 if(dist > 0)
                 {
                     smoothw[k] = 1.0/ dist;

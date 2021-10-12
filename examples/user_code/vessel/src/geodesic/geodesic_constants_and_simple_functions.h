@@ -9,10 +9,10 @@ namespace geodesic{
 #define M_PI 3.14159265358979323846
 #endif
 
-Scalar const GEODESIC_INF = 1e100;
+fScalar const GEODESIC_INF = 1e100;
 
 // statistics
-Scalar m_time_consumed;		//how much time does the propagation step takes
+fScalar m_time_consumed;		//how much time does the propagation step takes
 unsigned m_queue_max_size;			//used for statistics
 unsigned m_windows_propagation; // how many time a window is propagated
 unsigned m_windows_wavefront; // the number of windows on the wavefront
@@ -26,22 +26,22 @@ enum windows_state
 	both_valid
 };
 
-inline Scalar cos_from_edges(Scalar const a,			//compute the cosine of the angle given the lengths of the edges
-                             Scalar const b,
-                             Scalar const c)
+inline fScalar cos_from_edges(fScalar const a,			//compute the cosine of the angle given the lengths of the edges
+                             fScalar const b,
+                             fScalar const c)
 {
 	assert(a > 1e-50);
 	assert(b > 1e-50);
 	assert(c > 1e-50);
 
-    Scalar result = (b * b + c * c - a * a)/(2.0 * b * c);
+    fScalar result = (b * b + c * c - a * a)/(2.0 * b * c);
     result = result>-1.0?result:-1.0;
     return result <1.0 ? result:1.0;
 }
 
-inline Scalar angle_from_edges(Scalar const a,			//compute the cosine of the angle given the lengths of the edges
-                               Scalar const b,
-                               Scalar const c)
+inline fScalar angle_from_edges(fScalar const a,			//compute the cosine of the angle given the lengths of the edges
+                               fScalar const b,
+                               fScalar const c)
 {
 	return acos(cos_from_edges(a, b, c));
 }
@@ -59,7 +59,7 @@ inline bool read_mesh_from_file(char* filename,
 
 	char type;
 	std::string curLine;
-    Scalar coord[3];
+    fScalar coord[3];
 	unsigned int vtxIdx[3];
 	std::map<std::string, int> mapForDuplicate;
 	originalVertNum = 0;
@@ -109,13 +109,13 @@ inline bool read_mesh_from_file(char* filename,
 
 
 
-inline void CalculateIntersectionPoint(Scalar X1, Scalar Y1, // compute intersection point of two windows
-    Scalar X2, Scalar Y2,
-    Scalar X3, Scalar Y3,
-    Scalar X4, Scalar Y4,
-    Scalar &Intersect_X, Scalar &Intersect_Y)
+inline void CalculateIntersectionPoint(fScalar X1, fScalar Y1, // compute intersection point of two windows
+    fScalar X2, fScalar Y2,
+    fScalar X3, fScalar Y3,
+    fScalar X4, fScalar Y4,
+    fScalar &Intersect_X, fScalar &Intersect_Y)
 {
-    Scalar A1, B1, C1, A2, B2, C2;
+    fScalar A1, B1, C1, A2, B2, C2;
 	A1 = Y2 - Y1;
 	B1 = X1 - X2;
 	C1 = X2 * Y1 - X1 * Y2;
@@ -128,20 +128,20 @@ inline void CalculateIntersectionPoint(Scalar X1, Scalar Y1, // compute intersec
 }
 
 
-inline bool PointInTriangle(Scalar &X, Scalar &Y, // judge if a point is inside a triangle
-    //Scalar Ax, Scalar Ay, // 0, 0
-    Scalar &Bx, //Scalar By, // By = 0
-    Scalar &Cx, Scalar &Cy)
+inline bool PointInTriangle(fScalar &X, fScalar &Y, // judge if a point is inside a triangle
+    //fScalar Ax, fScalar Ay, // 0, 0
+    fScalar &Bx, //fScalar By, // By = 0
+    fScalar &Cx, fScalar &Cy)
 {
-    Scalar dot00 = Cx * Cx + Cy * Cy;// dot00 = dot(v0, v0)
-    Scalar dot01 = Cx * Bx;// dot01 = dot(v0, v1)
-    Scalar dot02 = Cx * X + Cy * Y;// dot02 = dot(v0, v2)
-    Scalar dot11 = Bx * Bx; // dot11 = dot(v1, v1)
-    Scalar dot12 = Bx * X;  // dot12 = dot(v1, v2)
+    fScalar dot00 = Cx * Cx + Cy * Cy;// dot00 = dot(v0, v0)
+    fScalar dot01 = Cx * Bx;// dot01 = dot(v0, v1)
+    fScalar dot02 = Cx * X + Cy * Y;// dot02 = dot(v0, v2)
+    fScalar dot11 = Bx * Bx; // dot11 = dot(v1, v1)
+    fScalar dot12 = Bx * X;  // dot12 = dot(v1, v2)
 
-    Scalar invDenom = 1 / (dot00 * dot11 - dot01 * dot01);
-    Scalar u = (dot11 * dot02 - dot01 * dot12) * invDenom;
-    Scalar v = (dot00 * dot12 - dot01 * dot02) * invDenom;
+    fScalar invDenom = 1 / (dot00 * dot11 - dot01 * dot01);
+    fScalar u = (dot11 * dot02 - dot01 * dot12) * invDenom;
+    fScalar v = (dot00 * dot12 - dot01 * dot02) * invDenom;
 
 	//return (u >= 0) && (v >= 0) && (u + v < 1);
 	return (u >= 1e-10) && (v >= 1e-10) && (u + v < 1 - 1e-10);

@@ -20,7 +20,7 @@ namespace geodesic {
 
         // construct neighboring mesh around src within m_radius, if no mesh is constructed,
         // increase m_radius with increase_radio
-        GeodesicAlgorithmExact(Mesh* mesh, size_t src, Scalar m_radius)
+        GeodesicAlgorithmExact(Mesh* mesh, size_t src, fScalar m_radius)
         {
             ori_mesh = mesh;
             Mesh* sub_mesh = new Mesh;
@@ -70,13 +70,13 @@ namespace geodesic {
         void propagate_one_windows_list(list_pointer &list);
 
         // construct neighboring mesh
-        bool construct_submesh(Mesh* sub_mesh, size_t source_idx, Scalar radius);
+        bool construct_submesh(Mesh* sub_mesh, size_t source_idx, fScalar radius);
 
 		// member variables
         std::set<vertex_pointer> m_vertex_queue;
 		std::queue<list_pointer> m_list_queue;                // FIFO queue for lists
 		MemoryAllocator<Interval> m_memory_allocator;		  // quickly allocate and deallocate intervals 
-        Scalar neighbor_radius;
+        fScalar neighbor_radius;
 
         Eigen::VectorXi SubVidxfromMesh;
         std::vector<int> MeshVidxfromSub;
@@ -117,7 +117,7 @@ namespace geodesic {
             edge_pointer   edge_it = *e_it;
             vertex_pointer vert_it = opposite_vertex(edge_it, pseudo_source);
 
-            Scalar distance = this->mesh()->data(pseudo_source).geodesic_distance
+            fScalar distance = this->mesh()->data(pseudo_source).geodesic_distance
                     + this->mesh()->data(edge_it).length;
 
             if (distance < this->mesh()->data(vert_it).geodesic_distance)
@@ -153,8 +153,8 @@ namespace geodesic {
 			candidate->start() = 0;
             candidate->stop() = this->mesh()->data(edge_it).length;
             candidate->d() = this->mesh()->data(pseudo_source).geodesic_distance;
-            Scalar angle = geodesic::GeodesicAlgorithmBase::vertex_angle(face_it, list->start_vertex());
-            Scalar length = this->mesh()->data(geodesic::GeodesicAlgorithmBase::next_edge
+            fScalar angle = geodesic::GeodesicAlgorithmBase::vertex_angle(face_it, list->start_vertex());
+            fScalar length = this->mesh()->data(geodesic::GeodesicAlgorithmBase::next_edge
                                                (face_it, edge_it,list->start_vertex())).length;
 			candidate->pseudo_x() = cos(angle) * length;
 			candidate->pseudo_y() = -sin(angle) * length;
@@ -181,28 +181,28 @@ namespace geodesic {
 	//----------------- propagate a windows list (Rule 1) ---------------------
 	inline void GeodesicAlgorithmExact::find_separating_point(list_pointer &list)
     {
-        const Scalar LOCAL_EPSILON = 1e-20 * this->mesh()->data(list->edge()).length; // numerical issue
+        const fScalar LOCAL_EPSILON = 1e-20 * this->mesh()->data(list->edge()).length; // numerical issue
 
-        Scalar L = this->mesh()->data(Tri.left_edge).length;
-        Scalar top_x = L * cos(Tri.left_alpha);
-        Scalar top_y = L * sin(Tri.left_alpha);
+        fScalar L = this->mesh()->data(Tri.left_edge).length;
+        fScalar top_x = L * cos(Tri.left_alpha);
+        fScalar top_y = L * sin(Tri.left_alpha);
 
-        Scalar temp_geodesic = GEODESIC_INF;
+        fScalar temp_geodesic = GEODESIC_INF;
         face_pointer temp_face_handle = this->mesh()->data(Tri.top_vertex).incident_face;
-        Scalar temp_incident_point = this->mesh()->data(Tri.top_vertex).incident_point;
+        fScalar temp_incident_point = this->mesh()->data(Tri.top_vertex).incident_point;
 
 		interval_pointer iter = list->begin();
 
-        Scalar wlist_sp = 0;
-        Scalar wlist_pseudo_x = 0;
-        Scalar wlist_pseudo_y = 0;
+        fScalar wlist_sp = 0;
+        fScalar wlist_pseudo_x = 0;
+        fScalar wlist_pseudo_y = 0;
 
 		while (iter != NULL)
 		{
             interval_pointer &w = iter;
 
-            Scalar w_sp = w->pseudo_x() - w->pseudo_y() * ((top_x - w->pseudo_x()) / (top_y - w->pseudo_y()));
-            Scalar distance = GEODESIC_INF;
+            fScalar w_sp = w->pseudo_x() - w->pseudo_y() * ((top_x - w->pseudo_x()) / (top_y - w->pseudo_y()));
+            fScalar distance = GEODESIC_INF;
 
 			// shortest path from the window
 			if ((w_sp - w->start() > LOCAL_EPSILON) && (w_sp - w->stop() < -LOCAL_EPSILON))
@@ -264,7 +264,7 @@ namespace geodesic {
 
 	inline void GeodesicAlgorithmExact::propagate_windows_to_two_edges(list_pointer &list)
 	{
-        const Scalar LOCAL_EPSILON = 1e-8 * this->mesh()->data(list->edge()).length; // numerical issue
+        const fScalar LOCAL_EPSILON = 1e-8 * this->mesh()->data(list->edge()).length; // numerical issue
 
 		interval_pointer iter = list->begin();
 		interval_pointer iter_t;
@@ -286,7 +286,7 @@ namespace geodesic {
 			if (w->sp() < list->sp() - LOCAL_EPSILON)
 			{
 				// only propagate to left edge
-                Scalar Intersect_X, Intersect_Y;
+                fScalar Intersect_X, Intersect_Y;
 
 				// judge the positions of the two windows
 				CalculateIntersectionPoint(list->pseudo_x(), list->pseudo_y(), list->sp(), 0, w->pseudo_x(), w->pseudo_y(), w->stop(), 0, Intersect_X, Intersect_Y);
@@ -302,7 +302,7 @@ namespace geodesic {
 			else if (w->sp() > list->sp() + LOCAL_EPSILON)
 			{
 				// only propagate to right edge
-                Scalar Intersect_X, Intersect_Y;
+                fScalar Intersect_X, Intersect_Y;
 
 				// judge the positions of the two windows
 				CalculateIntersectionPoint(list->pseudo_x(), list->pseudo_y(), list->sp(), 0, w->pseudo_x(), w->pseudo_y(), w->start(), 0, Intersect_X, Intersect_Y);
@@ -363,8 +363,8 @@ namespace geodesic {
 				iter_t = iter->next();
 				if (ValidPropagation)
 				{
-                    Scalar length = this->mesh()->data(Tri.right_edge).length; // invert window
-                    Scalar start = length - w->stop();
+                    fScalar length = this->mesh()->data(Tri.right_edge).length; // invert window
+                    fScalar start = length - w->stop();
 					w->stop() = length - w->start();
 					w->start() = start;
 					w->pseudo_x() = length - w->pseudo_x();
@@ -420,8 +420,8 @@ namespace geodesic {
 				if (ValidPropagation)
 				{
 					// invert window
-                    Scalar length = this->mesh()->data(Tri.right_edge).length;
-                    Scalar start = length - right_w->stop();
+                    fScalar length = this->mesh()->data(Tri.right_edge).length;
+                    fScalar start = length - right_w->stop();
 					right_w->stop() = length - right_w->start();
 					right_w->start() = start;
 					right_w->pseudo_x() = length - right_w->pseudo_x();
@@ -460,7 +460,7 @@ namespace geodesic {
             edge_pointer   e = list->edge();
 			vertex_pointer v1 = list->start_vertex();
             vertex_pointer v2 = opposite_vertex(e, v1);
-            Scalar d1 = GEODESIC_INF;
+            fScalar d1 = GEODESIC_INF;
 
 			d1 = w->d() + sqrt((w->stop() - w->pseudo_x()) * (w->stop() - w->pseudo_x()) + w->pseudo_y() * w->pseudo_y());
             if (this->mesh()->data(v1).geodesic_distance + w->stop() < d1)
@@ -485,19 +485,19 @@ namespace geodesic {
 
 	inline windows_state GeodesicAlgorithmExact::check_between_two_windows(interval_pointer &w1, interval_pointer &w2)
 	{
-        Scalar NUMERCIAL_EPSILON = 1 - 1e-12;
+        fScalar NUMERCIAL_EPSILON = 1 - 1e-12;
 		// we implement the discussed 6 cases as follows for simplicity
 
 		if ((w1->start() >= w2->start()) && (w1->start() <= w2->stop())) // w1->start
 		{
-            Scalar Intersect_X, Intersect_Y;
+            fScalar Intersect_X, Intersect_Y;
 
 			// judge the order of the two windows
 			CalculateIntersectionPoint(w2->pseudo_x(), w2->pseudo_y(), w1->start(), 0, w1->pseudo_x(), w1->pseudo_y(), w1->stop(), 0, Intersect_X, Intersect_Y);
 
 			if ((Intersect_Y <= 0) && (Intersect_Y >= w1->pseudo_y()) && (Intersect_Y >= w2->pseudo_y()))
 			{
-                Scalar d1, d2;
+                fScalar d1, d2;
 				d1 = w1->d() + sqrt((w1->start() - w1->pseudo_x()) * (w1->start() - w1->pseudo_x()) + (w1->pseudo_y()) * (w1->pseudo_y()));
 				d2 = w2->d() + sqrt((w1->start() - w2->pseudo_x()) * (w1->start() - w2->pseudo_x()) + (w2->pseudo_y()) * (w2->pseudo_y()));
 
@@ -510,14 +510,14 @@ namespace geodesic {
 
 		if ((w1->stop() >= w2->start()) && (w1->stop() <= w2->stop())) // w1->stop
 		{
-            Scalar Intersect_X, Intersect_Y;
+            fScalar Intersect_X, Intersect_Y;
 
 			// judge the order of the two windows
 			CalculateIntersectionPoint(w2->pseudo_x(), w2->pseudo_y(), w1->stop(), 0, w1->pseudo_x(), w1->pseudo_y(), w1->start(), 0, Intersect_X, Intersect_Y);
 
 			if ((Intersect_Y <= 0) && (Intersect_Y >= w1->pseudo_y()) && (Intersect_Y >= w2->pseudo_y()))
 			{
-                Scalar d1, d2;
+                fScalar d1, d2;
 				d1 = w1->d() + sqrt((w1->stop() - w1->pseudo_x()) * (w1->stop() - w1->pseudo_x()) + (w1->pseudo_y()) * (w1->pseudo_y()));
 				d2 = w2->d() + sqrt((w1->stop() - w2->pseudo_x()) * (w1->stop() - w2->pseudo_x()) + (w2->pseudo_y()) * (w2->pseudo_y()));
 
@@ -530,14 +530,14 @@ namespace geodesic {
 
 		if ((w2->start() >= w1->start()) && (w2->start() <= w1->stop())) // w2->start
 		{
-            Scalar Intersect_X, Intersect_Y;
+            fScalar Intersect_X, Intersect_Y;
 
 			// judge the previous order of the two windows
 			CalculateIntersectionPoint(w1->pseudo_x(), w1->pseudo_y(), w2->start(), 0, w2->pseudo_x(), w2->pseudo_y(), w2->stop(), 0, Intersect_X, Intersect_Y);
 
 			if ((Intersect_Y <= 0) && (Intersect_Y >= w1->pseudo_y()) && (Intersect_Y >= w2->pseudo_y()))
 			{
-                Scalar d1, d2;
+                fScalar d1, d2;
 				d1 = w1->d() + sqrt((w2->start() - w1->pseudo_x()) * (w2->start() - w1->pseudo_x()) + (w1->pseudo_y()) * (w1->pseudo_y()));
 				d2 = w2->d() + sqrt((w2->start() - w2->pseudo_x()) * (w2->start() - w2->pseudo_x()) + (w2->pseudo_y()) * (w2->pseudo_y()));
 
@@ -550,14 +550,14 @@ namespace geodesic {
 
 		if ((w2->stop() >= w1->start()) && (w2->stop() <= w1->stop())) // w2->stop
 		{
-            Scalar Intersect_X, Intersect_Y;
+            fScalar Intersect_X, Intersect_Y;
 
 			// judge the previous order of the two windows
 			CalculateIntersectionPoint(w1->pseudo_x(), w1->pseudo_y(), w2->stop(), 0, w2->pseudo_x(), w2->pseudo_y(), w2->start(), 0, Intersect_X, Intersect_Y);
 
 			if ((Intersect_Y <= 0) && (Intersect_Y >= w1->pseudo_y()) && (Intersect_Y >= w2->pseudo_y()))
 			{
-                Scalar d1, d2;
+                fScalar d1, d2;
 				d1 = w1->d() + sqrt((w2->stop() - w1->pseudo_x()) * (w2->stop() - w1->pseudo_x()) + (w1->pseudo_y()) * (w1->pseudo_y()));
 				d2 = w2->d() + sqrt((w2->stop() - w2->pseudo_x()) * (w2->stop() - w2->pseudo_x()) + (w2->pseudo_y()) * (w2->pseudo_y()));
 
@@ -570,21 +570,21 @@ namespace geodesic {
 
 		if (w1->start() >= w2->stop())
 		{
-            Scalar Intersect_X, Intersect_Y;
+            fScalar Intersect_X, Intersect_Y;
 
 			// judge the previous order of the two windows
 			CalculateIntersectionPoint(w1->pseudo_x(), w1->pseudo_y(), w1->start(), 0, w2->pseudo_x(), w2->pseudo_y(), w2->stop(), 0, Intersect_X, Intersect_Y);
 
             face_pointer f = opposite_face(Tri.bottom_edge, Tri.face);
             edge_pointer e = next_edge(f, Tri.bottom_edge, Tri.left_vertex);
-            Scalar angle = vertex_angle(f, Tri.left_vertex);
-            Scalar Cx = this->mesh()->data(e).length * cos(angle);
-            Scalar Cy = this->mesh()->data(e).length * -sin(angle);
+            fScalar angle = vertex_angle(f, Tri.left_vertex);
+            fScalar Cx = this->mesh()->data(e).length * cos(angle);
+            fScalar Cy = this->mesh()->data(e).length * -sin(angle);
 
             if ((PointInTriangle(Intersect_X, Intersect_Y, this->mesh()->data(Tri.bottom_edge).length, Cx, Cy))
 				&& (Intersect_Y <= 0) && (Intersect_Y >= w1->pseudo_y()) && (Intersect_Y >= w2->pseudo_y()))
 			{
-                Scalar d1, d2;
+                fScalar d1, d2;
 				d1 = w1->d() + sqrt((Intersect_X - w1->pseudo_x()) * (Intersect_X - w1->pseudo_x()) + (Intersect_Y - w1->pseudo_y()) * (Intersect_Y - w1->pseudo_y()));
 				d2 = w2->d() + sqrt((Intersect_X - w2->pseudo_x()) * (Intersect_X - w2->pseudo_x()) + (Intersect_Y - w2->pseudo_y()) * (Intersect_Y - w2->pseudo_y()));
 
@@ -597,21 +597,21 @@ namespace geodesic {
 
 		if (w2->start() >= w1->stop())
 		{
-            Scalar Intersect_X, Intersect_Y;
+            fScalar Intersect_X, Intersect_Y;
 
 			// judge the previous order of the two windows
 			CalculateIntersectionPoint(w2->pseudo_x(), w2->pseudo_y(), w2->start(), 0, w1->pseudo_x(), w1->pseudo_y(), w1->stop(), 0, Intersect_X, Intersect_Y);
 
             face_pointer f = opposite_face(Tri.bottom_edge, Tri.face);
             edge_pointer e = next_edge(f, Tri.bottom_edge, Tri.left_vertex);
-            Scalar angle = vertex_angle(f, Tri.left_vertex);
-            Scalar Cx = this->mesh()->data(e).length * cos(angle);
-            Scalar Cy = this->mesh()->data(e).length * -sin(angle);
+            fScalar angle = vertex_angle(f, Tri.left_vertex);
+            fScalar Cx = this->mesh()->data(e).length * cos(angle);
+            fScalar Cy = this->mesh()->data(e).length * -sin(angle);
 
             if ((PointInTriangle(Intersect_X, Intersect_Y, this->mesh()->data(Tri.bottom_edge).length, Cx, Cy))
 				&& (Intersect_Y <= 0) && (Intersect_Y >= w1->pseudo_y()) && (Intersect_Y >= w2->pseudo_y()))
 			{
-                Scalar d1, d2;
+                fScalar d1, d2;
 				d1 = w1->d() + sqrt((Intersect_X - w1->pseudo_x()) * (Intersect_X - w1->pseudo_x()) + (Intersect_Y - w1->pseudo_y()) * (Intersect_Y - w1->pseudo_y()));
 				d2 = w2->d() + sqrt((Intersect_X - w2->pseudo_x()) * (Intersect_X - w2->pseudo_x()) + (Intersect_Y - w2->pseudo_y()) * (Intersect_Y - w2->pseudo_y()));
 
@@ -839,7 +839,7 @@ namespace geodesic {
 	}
 
     // construct sub mesh
-    inline bool GeodesicAlgorithmExact::construct_submesh(Mesh* sub_mesh, size_t source_idx, Scalar radius)
+    inline bool GeodesicAlgorithmExact::construct_submesh(Mesh* sub_mesh, size_t source_idx, fScalar radius)
     {
         std::queue<size_t> vertexlist;//构建顶点队列
         vertexlist.push(source_idx);//存入某顶点id
@@ -895,10 +895,10 @@ namespace geodesic {
             }
         }
 
-		std::cout<<"before"<<sub_mesh->n_vertices()<<std::endl;
+		// std::cout<<"before"<<sub_mesh->n_vertices()<<std::endl;
         sub_mesh->delete_isolated_vertices();
         sub_mesh->garbage_collection();
-		std::cout<<"after"<<sub_mesh->n_vertices()<<std::endl;
+		// std::cout<<"after"<<sub_mesh->n_vertices()<<std::endl;
         if(sub_mesh->n_vertices() > 0)
             return true;
         else
@@ -910,7 +910,7 @@ namespace geodesic {
 	{
 		GeodesicAlgorithmBase::print_statistics();
 
-        Scalar memory = sizeof(Interval);
+        fScalar memory = sizeof(Interval);
 
 		//std::cout << std::endl;
 		std::cout << "Peak number of intervals on wave-front " << m_windows_peak << std::endl;

@@ -20,7 +20,7 @@ Vector3 Vec2Eigen(Vec3 s)
     return Vector3(s[0], s[1], s[2]);
 }
 
-Scalar mesh_scaling(Mesh& src_mesh, Mesh& tar_mesh)
+fScalar mesh_scaling(Mesh& src_mesh, Mesh& tar_mesh)
 {
     Vec3 max(-1e12, -1e12, -1e12);
     Vec3 min(1e12, 1e12, 1e12);
@@ -53,7 +53,7 @@ Scalar mesh_scaling(Mesh& src_mesh, Mesh& tar_mesh)
             }
         }
     }
-    Scalar scale = (max-min).norm();
+    fScalar scale = (max-min).norm();
 
     for(auto it = src_mesh.vertices_begin(); it != src_mesh.vertices_end(); it++)
     {

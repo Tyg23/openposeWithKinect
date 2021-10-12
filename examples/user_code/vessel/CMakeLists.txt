@@ -1,5 +1,6 @@
 cmake_minimum_required(VERSION 3.0)
 project(Fast_RNRR)
+set( CMAKE_CXX_STANDARD 14)
 
 set(FastRNRR_Dir ${CMAKE_SOURCE_DIR}/examples/user_code/vessel)
 #--- CMake configuration
@@ -37,6 +38,19 @@ endif()
 find_package(NanoFlann REQUIRED)
 include_directories(${NANOFLANN_INCLUDE_DIR})
 
+#--- pcl
+find_package(PCL REQUIRED)
+include_directories(${PCL_INCLUDE_DIRS})
+link_directories(${PCL_LIBRARY_DIRS})
+add_definitions(${PCL_DEFINITIONS})
+
+#---k4a
+find_package(k4a REQUIRED)
+if(k4a_FOUND)
+message(STATUS "Kinect SDK found")
+endif()
+
+
 #--- Build example
 include_directories("./src/")
 file(GLOB SOURCES "./src/*.cpp" "./src/geodesic/*.cpp" "./src/tools/*.cpp" "./src/lib_json/*.*")
@@ -44,6 +58,15 @@ file(GLOB HEADERS "./src/*.h" "./src/geodesic/*.h" "./src/tools/*.h" "./src/json
 
 link_directories(/home/y/Downloads/OpenMesh-8.1/build/Build/lib)
 
+# 指定libTorch位置
+set(Torch_DIR /home/y/libtorch/share/cmake/Torch)
+find_package(Torch REQUIRED)
+message(STATUS "Torch library status:")
+message(STATUS "    version: ${TORCH_VERSION}")
+message(STATUS "    libraries: ${TORCH_LIBS}")
+message(STATUS "    include path: ${TORCH_INCLUDE_DIRS}")
+message(STATUS "    torch lib : ${TORCH_LIBRARIES} ")
+include_directories(${TORCH_INCLUDE_DIRS})
 
 set(USER_CODE_FILES
      ./src/main.cpp)
@@ -55,7 +78,11 @@ add_executable(${PROJECT_NAME} ${SOURCES} ${HEADERS})
 #--- openmesh libs
 target_link_libraries(${PROJECT_NAME}
     OpenMeshCore OpenMeshTools
-    openpose ${examples_3rdparty_libraries})
+    openpose 
+    k4a::k4a
+    ${TORCH_LIBRARIES} 
+    ${PCL_LIBRARIES}   
+    ${examples_3rdparty_libraries})
 
 
 if(APPLE OR UNIX)

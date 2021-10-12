@@ -9,15 +9,15 @@ struct RegParas
 {
     int		max_outer_iters;    // nonrigid max iters 最大循环次数
     int		max_inner_iters;    // nonrigid max quasi-newton iters
-    Scalar	alpha;              // smooth
-    Scalar	beta;               // orth
-    Scalar  gamma;              // landmarks
+    fScalar	alpha;              // smooth
+    fScalar	beta;               // orth
+    fScalar  gamma;              // landmarks
     bool	use_lbfgs;          // use lbfgs speed up or not
     int		lbfgs_m;            // lbfgs parameters
     bool	use_normal_reject;  // use normal reject or not
     bool	use_distance_reject;// use distance reject or not
-    Scalar	normal_threshold;
-    Scalar	distance_threshold;
+    fScalar	normal_threshold;
+    fScalar	distance_threshold;
     int     rigid_iters;         // rigid registration max iterations
     bool	use_landmark;
     bool    use_fixedvex;        // Set the point which haven't correspondences
@@ -31,14 +31,14 @@ struct RegParas
 
     // dynamic welsch method parameters
     bool    use_Dynamic_nu;
-    Scalar  Data_nu;
-    Scalar  Smooth_nu;
-    Scalar  Data_initk;
-    Scalar  Data_endk;
-    Scalar  stop;
+    fScalar  Data_nu;
+    fScalar  Smooth_nu;
+    fScalar  Data_initk;
+    fScalar  Data_endk;
+    fScalar  stop;
 
 	// Sample para
-    Scalar  uni_sample_radio;       // uniform sample radio
+    fScalar  uni_sample_radio;       // uniform sample radio
     bool    print_each_step_info;   // debug output : each step nodes, correspondences
 
     // output path
@@ -46,15 +46,15 @@ struct RegParas
     std::string out_each_step_info;
     int         num_sample_nodes;
 
-    std::vector<Scalar> each_times;
-    std::vector<Scalar> each_gt_mean_errs;
-    std::vector<Scalar> each_gt_max_errs;
-    std::vector<Scalar> each_energys;
-    std::vector<Scalar> each_iters;
+    std::vector<fScalar> each_times;
+    std::vector<fScalar> each_gt_mean_errs;
+    std::vector<fScalar> each_gt_max_errs;
+    std::vector<fScalar> each_energys;
+    std::vector<fScalar> each_iters;
     std::vector<Vector3> each_term_energy;
-    Scalar  non_rigid_init_time;
-    Scalar  init_gt_mean_errs;
-    Scalar  init_gt_max_errs;
+    fScalar  non_rigid_init_time;
+    fScalar  init_gt_mean_errs;
+    fScalar  init_gt_max_errs;
 
 
     RegParas() // default
@@ -96,7 +96,7 @@ struct RegParas
 };
 
 // normalize mesh
-Scalar mesh_scaling(Mesh& src_mesh, Mesh& tar_mesh);
+fScalar mesh_scaling(Mesh& src_mesh, Mesh& tar_mesh);
 // Convert Mesh to libigl format to calculate geodesic distance
 void Mesh2VF(Mesh & mesh, MatrixXX& V, Eigen::MatrixXi& F);
 Vec3 Eigen2Vec(Vector3 s);

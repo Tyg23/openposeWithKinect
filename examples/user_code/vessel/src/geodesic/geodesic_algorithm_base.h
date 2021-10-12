@@ -53,15 +53,15 @@ public:
         return this->mesh()->edge_handle(next_hf);
     };
 
-    Scalar vertex_angle(face_pointer f, vertex_pointer v)
+    fScalar vertex_angle(face_pointer f, vertex_pointer v)
     {
         halfedge_handle hf0 = this->mesh()->halfedge_handle(f);
         vertex_pointer v0 = this->mesh()->from_vertex_handle(hf0);
         vertex_pointer v1 = this->mesh()->to_vertex_handle(hf0);
         vertex_pointer v2 = this->mesh()->to_vertex_handle(this->mesh()->next_halfedge_handle(hf0));
-        Scalar l1 = (this->mesh()->point(v0) - this->mesh()->point(v1)).norm();
-        Scalar l2 = (this->mesh()->point(v1) - this->mesh()->point(v2)).norm();
-        Scalar l3 = (this->mesh()->point(v2) - this->mesh()->point(v0)).norm();
+        fScalar l1 = (this->mesh()->point(v0) - this->mesh()->point(v1)).norm();
+        fScalar l2 = (this->mesh()->point(v1) - this->mesh()->point(v2)).norm();
+        fScalar l3 = (this->mesh()->point(v2) - this->mesh()->point(v0)).norm();
         if(v0.idx()==v.idx())
         {
             return angle_from_edges(l2, l3, l1);
@@ -128,21 +128,21 @@ public:
     Mesh* mesh(){return m_mesh;};
 
     // propagate a window
-    bool compute_propagated_parameters(Scalar pseudo_x,
-                                       Scalar pseudo_y,
-                                       Scalar start,
-                                       Scalar end,		//start/end of the interval
-                                       Scalar alpha,	//corner angle
-                                       Scalar L,		//length of the new edge
+    bool compute_propagated_parameters(fScalar pseudo_x,
+                                       fScalar pseudo_y,
+                                       fScalar start,
+                                       fScalar end,		//start/end of the interval
+                                       fScalar alpha,	//corner angle
+                                       fScalar L,		//length of the new edge
                                        interval_pointer candidates,
-                                       Scalar d);		//if it is the last interval on the edge
+                                       fScalar d);		//if it is the last interval on the edge
 
     // intersection point on an edge
-    Scalar compute_positive_intersection(Scalar start,
-                                         Scalar pseudo_x,
-                                         Scalar pseudo_y,
-                                         Scalar sin_alpha,
-                                         Scalar cos_alpha);
+    fScalar compute_positive_intersection(fScalar start,
+                                         fScalar pseudo_x,
+                                         fScalar pseudo_y,
+                                         fScalar sin_alpha,
+                                         fScalar cos_alpha);
 
     inline bool calculate_triangle_parameters(list_pointer &list, Triangle &Tri); // calculate the parameters of the triangle to be propagated
 
@@ -235,22 +235,22 @@ inline void GeodesicAlgorithmBase::initialize(Mesh* mesh)
     build_adjacencies();
 };
 
-inline Scalar GeodesicAlgorithmBase::compute_positive_intersection(Scalar start,
-                                                                   Scalar pseudo_x,
-                                                                   Scalar pseudo_y,
-                                                                   Scalar sin_alpha,
-                                                                   Scalar cos_alpha)
+inline fScalar GeodesicAlgorithmBase::compute_positive_intersection(fScalar start,
+                                                                   fScalar pseudo_x,
+                                                                   fScalar pseudo_y,
+                                                                   fScalar sin_alpha,
+                                                                   fScalar cos_alpha)
 {
     //assert(pseudo_y < 0);
     assert(pseudo_y <= 0);
 
-    Scalar denominator = sin_alpha*(pseudo_x - start) - cos_alpha*pseudo_y;
+    fScalar denominator = sin_alpha*(pseudo_x - start) - cos_alpha*pseudo_y;
     if (denominator < 0.0)
     {
         return -1.0;
     }
 
-    Scalar numerator = -pseudo_y*start;
+    fScalar numerator = -pseudo_y*start;
 
     if (numerator < 1e-30)
     {
@@ -265,14 +265,14 @@ inline Scalar GeodesicAlgorithmBase::compute_positive_intersection(Scalar start,
     return numerator / denominator;
 }
 
-inline bool GeodesicAlgorithmBase::compute_propagated_parameters(Scalar pseudo_x,
-                                                                 Scalar pseudo_y,
-                                                                 Scalar begin,
-                                                                 Scalar end,		//start/end of the interval
-                                                                 Scalar alpha,	//corner angle
-                                                                 Scalar L,		//length of the new edge
+inline bool GeodesicAlgorithmBase::compute_propagated_parameters(fScalar pseudo_x,
+                                                                 fScalar pseudo_y,
+                                                                 fScalar begin,
+                                                                 fScalar end,		//start/end of the interval
+                                                                 fScalar alpha,	//corner angle
+                                                                 fScalar L,		//length of the new edge
                                                                  interval_pointer candidates,
-                                                                 Scalar d)
+                                                                 fScalar d)
 {
     assert(pseudo_y <= 0.0);
     assert(begin <= end);
@@ -282,12 +282,12 @@ inline bool GeodesicAlgorithmBase::compute_propagated_parameters(Scalar pseudo_x
 
     interval_pointer p = candidates;
 
-    Scalar sin_alpha = sin(alpha);
-    Scalar cos_alpha = cos(alpha);
+    fScalar sin_alpha = sin(alpha);
+    fScalar cos_alpha = cos(alpha);
 
     //important: for the first_interval, this function returns zero only if the new edge is "visible" from the source
     //if the new edge can be covered only after turn_over, the value is negative (-1.0)
-    Scalar L1 = compute_positive_intersection(begin,
+    fScalar L1 = compute_positive_intersection(begin,
                                               pseudo_x,
                                               pseudo_y,
                                               sin_alpha,
@@ -296,7 +296,7 @@ inline bool GeodesicAlgorithmBase::compute_propagated_parameters(Scalar pseudo_x
     if (L1 < 0 || L1 >= L) // Does not produce a window on the edge
         return false;
 
-    Scalar L2 = compute_positive_intersection(end,
+    fScalar L2 = compute_positive_intersection(end,
                                               pseudo_x,
                                               pseudo_y,
                                               sin_alpha,
@@ -377,16 +377,16 @@ inline bool GeodesicAlgorithmBase::calculate_triangle_parameters(list_pointer &l
 inline void GeodesicAlgorithmBase::build_adjacencies()
 {
     // define m_turn_around_flag for vertices
-    std::vector<Scalar> total_vertex_angle(this->mesh()->n_vertices(), 0);
+    std::vector<fScalar> total_vertex_angle(this->mesh()->n_vertices(), 0);
     for(auto f_it = this->mesh()->faces_begin(); f_it != this->mesh()->faces_end(); ++f_it)
     {
         halfedge_handle hf0 = this->mesh()->halfedge_handle(*f_it);
         vertex_pointer v0 = this->mesh()->from_vertex_handle(hf0);
         vertex_pointer v1 = this->mesh()->to_vertex_handle(hf0);
         vertex_pointer v2 = this->mesh()->to_vertex_handle(this->mesh()->next_halfedge_handle(hf0));
-        Scalar l1 = (this->mesh()->point(v0) - this->mesh()->point(v1)).norm();
-        Scalar l2 = (this->mesh()->point(v1) - this->mesh()->point(v2)).norm();
-        Scalar l3 = (this->mesh()->point(v2) - this->mesh()->point(v0)).norm();
+        fScalar l1 = (this->mesh()->point(v0) - this->mesh()->point(v1)).norm();
+        fScalar l2 = (this->mesh()->point(v1) - this->mesh()->point(v2)).norm();
+        fScalar l3 = (this->mesh()->point(v2) - this->mesh()->point(v0)).norm();
 
         total_vertex_angle[v0.idx()] += angle_from_edges(l2, l3, l1);
         total_vertex_angle[v1.idx()] += angle_from_edges(l3, l1, l2);

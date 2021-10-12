@@ -10,7 +10,7 @@ namespace svr
     class neighborIter
     {
     public:
-        neighborIter(const std::map<size_t, Scalar> &nodeNeighbors)
+        neighborIter(const std::map<size_t, fScalar> &nodeNeighbors)
         {
             m_neighborIter = nodeNeighbors.begin();
             m_neighborEnd = nodeNeighbors.end();
@@ -30,15 +30,15 @@ namespace svr
             return tempIter;
         }
 
-        const std::pair<const size_t, Scalar>& operator*() { return *m_neighborIter; }
-        std::map<size_t, Scalar>::const_iterator operator->() { return m_neighborIter; }
+        const std::pair<const size_t, fScalar>& operator*() { return *m_neighborIter; }
+        std::map<size_t, fScalar>::const_iterator operator->() { return m_neighborIter; }
         bool is_valid() { return m_neighborIter != m_neighborEnd; }
         size_t getIndex() { return m_neighborIter->first; }
-        Scalar getWeight() { return m_neighborIter->second; }
+        fScalar getWeight() { return m_neighborIter->second; }
 
     private:
-        std::map<size_t, Scalar>::const_iterator m_neighborIter;
-        std::map<size_t, Scalar>::const_iterator m_neighborEnd;
+        std::map<size_t, fScalar>::const_iterator m_neighborIter;
+        std::map<size_t, fScalar>::const_iterator m_neighborEnd;
     };
 
     //------------------------------------------------------------------------
@@ -51,8 +51,8 @@ namespace svr
         nodeSampler() {};
 
         // return sample radius
-//        Scalar sample(Mesh &mesh, Scalar sampleRadiusRatio, sampleAxis axis);
-        Scalar sampleAndconstuct(Mesh &mesh, Scalar sampleRadiusRatio, sampleAxis axis);
+//        fScalar sample(Mesh &mesh, fScalar sampleRadiusRatio, sampleAxis axis);
+        fScalar sampleAndconstuct(Mesh &mesh, fScalar sampleRadiusRatio, sampleAxis axis);
 
         void updateWeight(Mesh &mesh);
         void constructGraph(bool is_uniform);
@@ -65,22 +65,22 @@ namespace svr
 
         size_t getVertexNeighborSize(size_t vertexIdx) const { return m_vertexGraph.at(vertexIdx).size(); }
         size_t getNodeNeighborSize(size_t nodeIdx) const { return m_nodeGraph.at(nodeIdx).size(); }
-        void initWeight(Eigen::SparseMatrix<Scalar>& matPV, MatrixXX & matP,
-                        Eigen::SparseMatrix<Scalar>& matB, MatrixXX& matD, VectorX& smoothw);
+        void initWeight(Eigen::SparseMatrix<fScalar>& matPV, MatrixXX & matP,
+                        Eigen::SparseMatrix<fScalar>& matB, MatrixXX& matD, VectorX& smoothw);
         void print_nodes(Mesh & mesh, std::string file_path);
 
     private:
         size_t m_meshVertexNum = 0;
         size_t m_meshEdgeNum = 0;
-        Scalar m_averageEdgeLen = 0.0f;
-        Scalar m_sampleRadius = 0.0f;
-        std::vector<Scalar> non_unisamples_Radius;
+        fScalar m_averageEdgeLen = 0.0f;
+        fScalar m_sampleRadius = 0.0f;
+        std::vector<fScalar> non_unisamples_Radius;
         Mesh * m_mesh;
 
         std::vector<std::pair<size_t, size_t>> m_nodeContainer;
-        std::vector<std::map<size_t, Scalar>> m_vertexGraph; // vertex node graph
-        std::vector<std::map<size_t, Scalar>> m_nodeGraph;
-        std::vector<std::map<size_t, Scalar>> m_nodeVertexGraph;
+        std::vector<std::map<size_t, fScalar>> m_vertexGraph; // vertex node graph
+        std::vector<std::map<size_t, fScalar>> m_nodeGraph;
+        std::vector<std::map<size_t, fScalar>> m_nodeVertexGraph;
         std::vector<VectorX> m_geoDistContainer;
         Eigen::VectorXi      VertexNodeIdx;
 

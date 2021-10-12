@@ -151,18 +151,18 @@ public:
 	void clear()
 	{
 		m_num_bytes = 0;
-        m_buffer = std::auto_ptr<Scalar>();
+        m_buffer = std::auto_ptr<fScalar>();
 	}
 
 	template<class T>
 	T* allocate(unsigned n)
 	{
-        Scalar wanted = n*sizeof(T);
+        fScalar wanted = n*sizeof(T);
 		if(wanted > m_num_bytes)
 		{
-            unsigned new_size = (unsigned) ceil(wanted / (Scalar)sizeof(Scalar));
-            m_buffer = std::auto_ptr<Scalar>(new Scalar[new_size]);
-            m_num_bytes = new_size*sizeof(Scalar);
+            unsigned new_size = (unsigned) ceil(wanted / (fScalar)sizeof(fScalar));
+            m_buffer = std::auto_ptr<fScalar>(new fScalar[new_size]);
+            m_num_bytes = new_size*sizeof(fScalar);
 		}
 
 		return (T*)m_buffer.get();
@@ -177,12 +177,12 @@ public:
 	template<class T>
 	unsigned capacity()
 	{
-        return (unsigned)floor((Scalar)m_num_bytes/(Scalar)sizeof(T));
+        return (unsigned)floor((fScalar)m_num_bytes/(fScalar)sizeof(T));
 	};
 
 private:
 
-    std::auto_ptr<Scalar> m_buffer;
+    std::auto_ptr<fScalar> m_buffer;
 	unsigned m_num_bytes;
 };
 

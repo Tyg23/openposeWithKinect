@@ -3,6 +3,7 @@
 #include <iostream>
 #include <json/reader.h>
 #include <unordered_map>
+#include <workutils.h>
 
 #if (__cplusplus >= 201402L) || (defined(_MSC_VER) && _MSC_VER >= 1800)
 #define MAKE_UNIQUE std::make_unique
@@ -10,7 +11,7 @@
 #define MAKE_UNIQUE company::make_unique
 #endif
 
-
+/*
 void LocateVesselOnSurface()
 { 
     OpenMesh::IO::Options opt_read = OpenMesh::IO::Options::VertexNormal;
@@ -66,7 +67,7 @@ void LocateVesselOnSurface()
         std::vector<float*> srcpoints;
         for (int i = 0; i < points.size(); i++)
         {
-            Scalar mini_dist;
+            fScalar mini_dist;
             //通过KDtree寻找距离source mesh点对应的最近的target上的点，并将最小距离存入mini_dist
 
             int idx = srctree->closest(selectpoint[i], mini_dist);
@@ -131,7 +132,7 @@ void LocateTrajectoryOnSurface()
     std::vector<int> srcpoints;
         for (int i = 0; i < vel_points.cols(); i++)
         {
-            Scalar mini_dist;
+            fScalar mini_dist;
             //通过KDtree寻找距离source mesh点对应的最近的target上的点，并将最小距离存入mini_dist
             for (size_t j = 0; j < 3; j++)
             {
@@ -162,6 +163,42 @@ void LocateTrajectoryOnSurface()
     std::cout<<"successfullllll"<<std::endl;
 }
 
+
+
+bool read_data2(const std::string filename, Mesh& mesh)
+{
+    OpenMesh::IO::Options opt_read = OpenMesh::IO::Options::VertexNormal;
+    mesh.request_vertex_normals();
+    bool read_OK = OpenMesh::IO::read_mesh(mesh, filename,opt_read);
+
+	std::cout << "filename = " << filename << std::endl;
+    if (read_OK)
+    {
+        mesh.request_vertex_status();
+        mesh.request_edge_status();
+        mesh.request_face_status();
+
+        mesh.request_face_normals();
+        // printBasicMeshInfo(mesh);
+
+        mesh.update_face_normals();
+        if(mesh.n_faces()>0)
+            mesh.update_vertex_normals();
+
+        Vec3 MeshScales;
+        MeshScales[0] = 0.0; MeshScales[1] = 0.0; MeshScales[2] = 0.0;
+        for (Mesh::VertexIter v_it = mesh.vertices_begin(); v_it != mesh.vertices_end(); ++v_it)
+        {
+            MeshScales += mesh.point(*v_it);
+        }
+        MeshScales /= mesh.n_vertices();
+        return true;
+    }
+    std::cout << "#vertices = " << mesh.n_vertices() << std::endl;
+    return false;
+}
+*/
+
 Registration::Registration() {
     target_tree = NULL;
     src_mesh_ = NULL;
@@ -187,8 +224,13 @@ void Registration::rigid_init(Mesh & src_mesh, Mesh & tar_mesh, RegParas& paras)
     src_mesh_ = new Mesh;
     //tar_mesh为目标模型
     tar_mesh_ = new Mesh;
+
+    workutils::initialAlign(name2,1);
+
+    workutils::read_data("tranformedTarget.ply",*tar_mesh_);
+
     src_mesh_ = &src_mesh;
-    tar_mesh_ = &tar_mesh;
+    // tar_mesh_ = &tar_mesh;
     //pars_为参数集
     pars_ = paras;
     //输入mesh文件，获取顶点
@@ -211,7 +253,7 @@ void Registration::rigid_init(Mesh & src_mesh, Mesh & tar_mesh, RegParas& paras)
     }
 
     // LocateVesselOnSurface();
-    LocateTrajectoryOnSurface();
+    // LocateTrajectoryOnSurface();
 
     // construct kd Tree
     target_tree = new KDtree(tar_points_);
@@ -221,7 +263,7 @@ void Registration::rigid_init(Mesh & src_mesh, Mesh & tar_mesh, RegParas& paras)
 
 /// Find self edge median of point cloud
 template<typename Derived1>
-Scalar Registration::FindKnearestMed(Eigen::MatrixBase<Derived1>& X, int nk)
+fScalar Registration::FindKnearestMed(Eigen::MatrixBase<Derived1>& X, int nk)
 {
     nanoflann::KDTreeAdaptor<Eigen::MatrixBase<Derived1>, 3, nanoflann::metric_L2_Simple> kdtree(X);
     VectorX X_nearest(X.cols());
@@ -229,14 +271,14 @@ Scalar Registration::FindKnearestMed(Eigen::MatrixBase<Derived1>& X, int nk)
     for (int i = 0; i<X.cols(); i++)
     {
         int* id = new int[nk];
-        Scalar *dist = new Scalar[nk];
+        fScalar *dist = new fScalar[nk];
         kdtree.query(X.col(i).data(), nk, id, dist);
         VectorX k_dist = Eigen::Map<VectorX>(dist, nk);
         igl::median(k_dist.tail(nk - 1), X_nearest[i]);
         delete[]id;
         delete[]dist;
     }
-    Scalar med;
+    fScalar med;
     igl::median(X_nearest, med);
     return med;
 }
@@ -278,42 +320,9 @@ void Registration::nonrigid_init()
 }
 
 
-bool read_data2(const std::string filename, Mesh& mesh)
-{
-    OpenMesh::IO::Options opt_read = OpenMesh::IO::Options::VertexNormal;
-    mesh.request_vertex_normals();
-    bool read_OK = OpenMesh::IO::read_mesh(mesh, filename,opt_read);
-
-	std::cout << "filename = " << filename << std::endl;
-    if (read_OK)
-    {
-        mesh.request_vertex_status();
-        mesh.request_edge_status();
-        mesh.request_face_status();
-
-        mesh.request_face_normals();
-        // printBasicMeshInfo(mesh);
-
-        mesh.update_face_normals();
-        if(mesh.n_faces()>0)
-            mesh.update_vertex_normals();
-
-        Vec3 MeshScales;
-        MeshScales[0] = 0.0; MeshScales[1] = 0.0; MeshScales[2] = 0.0;
-        for (Mesh::VertexIter v_it = mesh.vertices_begin(); v_it != mesh.vertices_end(); ++v_it)
-        {
-            MeshScales += mesh.point(*v_it);
-        }
-        MeshScales /= mesh.n_vertices();
-        return true;
-    }
-    std::cout << "#vertices = " << mesh.n_vertices() << std::endl;
-    return false;
-}
-
 
 // Rigid Registration
-Scalar Registration::DoRigid()
+fScalar Registration::DoRigid()
 {
     //构建点云矩阵3*n
     Matrix3X rig_tar_v = Matrix3X::Zero(3, n_src_vertex_);
@@ -375,8 +384,8 @@ Scalar Registration::DoRigid()
     std::ofstream file1("pcdsource2.txt");
     std::ofstream file2("pcdtarget2.txt");
     Mesh source_mesh,target_mesh;
-    read_data2(name1, source_mesh);
-    read_data2(name2, target_mesh);
+    workutils::read_data(name1, source_mesh);
+    workutils::read_data(name2, target_mesh);
     Mesh* source_mesh_;
     Mesh* target_mesh_;
     source_mesh_=&source_mesh;
@@ -410,7 +419,7 @@ void Registration::FindClosestPoints(VPairs & corres)
     //为源模型的顶点寻找点对
     for (int i = 0; i < n_src_vertex_; i++)
     {
-        Scalar mini_dist;
+        fScalar mini_dist;
         //通过KDtree寻找距离source mesh点对应的最近的target上的点，并将最小距离存入mini_dist 
         int idx = target_tree->closest(src_mesh_->point(src_mesh_->vertex_handle(i)).data(), mini_dist);
         Closest c;
@@ -441,13 +450,13 @@ void Registration::SimplePruning(VPairs & corres, bool use_distance = true, bool
     {
         Vector3 closet = corres[i].position;
         //计算点对间的距离
-        Scalar dist = (src_mesh_->point(src_mesh_->vertex_handle(corres[i].src_idx))
+        fScalar dist = (src_mesh_->point(src_mesh_->vertex_handle(corres[i].src_idx))
                        - Eigen2Vec(closet)).norm();
 
         Vec3 src_normal = src_mesh_->normal(src_mesh_->vertex_handle(corres[i].src_idx));
         Vec3 tar_normal = Eigen2Vec(corres[i].normal);
         //计算两个向量的夹角
-        Scalar angle = acos(src_normal | tar_normal / (src_normal.norm()*tar_normal.norm()));
+        fScalar angle = acos(src_normal | tar_normal / (src_normal.norm()*tar_normal.norm()));
 
         //如果满足某些条件，相应的点对会通过corres_idx被标记
         if((!use_distance || dist < pars_.distance_threshold)
@@ -531,9 +540,9 @@ void Registration::InitCorrespondence(VPairs & corres)
 }
 
 // *type: 0 :median, 1: average
-Scalar Registration::CalcEdgelength(Mesh* mesh, int type)
+fScalar Registration::CalcEdgelength(Mesh* mesh, int type)
 {
-    Scalar med;
+    fScalar med;
     if(mesh->n_faces() > 0)
     {
         VectorX edges_length(mesh->n_edges());
@@ -556,7 +565,7 @@ Scalar Registration::CalcEdgelength(Mesh* mesh, int type)
         for(size_t i = 0; i<mesh->n_vertices(); i++)
         {
             int* id = new int[nk];
-            Scalar *dist = new Scalar[nk];
+            fScalar *dist = new fScalar[nk];
             target_tree->query(mesh->point(mesh->vertex_handle(i)).data(), nk, id, dist);
             VectorX k_dist = Eigen::Map<VectorX>(dist, nk);
             if (type == 0)

@@ -1,7 +1,7 @@
 #pragma once
 #include "NonRigidreg.h"
 
-typedef Eigen::Triplet<Scalar> Triplet;
+typedef Eigen::Triplet<fScalar> Triplet;
 
 NonRigidreg::NonRigidreg() {
 };
@@ -20,7 +20,7 @@ void NonRigidreg::Initialize()
 
     weight_d_.setOnes();
     weight_s_.setOnes();
-    Scalar sample_radius;
+    fScalar sample_radius;
 
     Timer timer;
     Timer::EventID time1, time2;
@@ -106,9 +106,9 @@ void NonRigidreg::Initialize()
     pars_.beta = pars_.beta *  num_sample_nodes / n_src_vertex_;
 }
 
-Scalar NonRigidreg::DoNonRigid()
+fScalar NonRigidreg::DoNonRigid()
 {
-    Scalar data_err, smooth_err, orth_err;
+    fScalar data_err, smooth_err, orth_err;
 
     MatrixXX curV =  MatrixXX::Zero(n_src_vertex_, 3);
     MatrixXX prevV = MatrixXX::Zero(n_src_vertex_, 3);
@@ -138,10 +138,10 @@ Scalar NonRigidreg::DoNonRigid()
     pars_.each_term_energy.push_back(Vector3(0,0,0));
 
     // Data term parameters
-    Scalar nu1 = pars_.Data_initk * pars_.Data_nu;
-    Scalar average_len = CalcEdgelength(src_mesh_, 1);
-    Scalar end_nu1 = pars_.Data_endk * average_len;
-    Scalar nu2 = pars_.Smooth_nu * average_len;
+    fScalar nu1 = pars_.Data_initk * pars_.Data_nu;
+    fScalar average_len = CalcEdgelength(src_mesh_, 1);
+    fScalar end_nu1 = pars_.Data_endk * average_len;
+    fScalar nu2 = pars_.Smooth_nu * average_len;
 
     // Smooth term parameters
     ori_alpha = pars_.alpha;
@@ -149,7 +149,7 @@ Scalar NonRigidreg::DoNonRigid()
     pars_.alpha = ori_alpha * nu1 * nu1 / (nu2 * nu2);
     pars_.beta = ori_beta * 2.0 * nu1 * nu1;
 
-    Scalar gt_err;
+    fScalar gt_err;
 
     bool dynamic_stop = false;
     int accumulate_iter = 0;
@@ -302,7 +302,7 @@ Scalar NonRigidreg::DoNonRigid()
     return 0;
 }
 
-Scalar NonRigidreg::sample_energy(Scalar& data_err, Scalar& smooth_err, Scalar& orth_err)
+fScalar NonRigidreg::sample_energy(fScalar& data_err, fScalar& smooth_err, fScalar& orth_err)
 {
     data_err =  ( Weight_PV_ * Smat_X_  - Smat_UP_).squaredNorm();
     smooth_err = ( (Smat_B_ * Smat_X_ - Smat_D_)).squaredNorm();
@@ -322,7 +322,7 @@ Scalar NonRigidreg::sample_energy(Scalar& data_err, Scalar& smooth_err, Scalar& 
         orth_errs[i] = (Smat_X_.block(4 * i, 0, 3, 3) - Smat_R_.block(3 * i, 0, 3, 3)).squaredNorm();
     }
     orth_err = orth_errs.sum();
-    Scalar total_err = data_err + pars_.alpha * smooth_err + pars_.beta * orth_err;
+    fScalar total_err = data_err + pars_.alpha * smooth_err + pars_.beta * orth_err;
     if(pars_.use_landmark)
         total_err += pars_.gamma * ( Sub_PV_ * Smat_X_  - Sub_UP_).squaredNorm();
     return total_err;
@@ -365,8 +365,8 @@ void NonRigidreg::LBFGS(int iter, MatrixXX & dir) const
     {
         int col = (pars_.lbfgs_m + col_idx_ - (k - 1 - i)) % pars_.lbfgs_m;
         rho(k - 1 - i) = all_t_.col(col).transpose().dot(all_s_.col(col));
-        Scalar lbfgs_err_scalar = Eigen::Map<VectorX>(q.data(), q.size()).dot(all_s_.col(col));
-        kersi(k - 1 - i) = lbfgs_err_scalar / rho(k - 1 - i);
+        fScalar lbfgs_err_fScalar = Eigen::Map<VectorX>(q.data(), q.size()).dot(all_s_.col(col));
+        kersi(k - 1 - i) = lbfgs_err_fScalar / rho(k - 1 - i);
         Eigen::Map<VectorX>(q.data(), q.size()) -= kersi(k - 1 - i) * all_t_.col(col);
     }
 #pragma omp parallel for
@@ -378,8 +378,8 @@ void NonRigidreg::LBFGS(int iter, MatrixXX & dir) const
     for (int i = k - m_k; i < k; i++)
     {
         int col = (pars_.lbfgs_m + col_idx_ - (k - 1 - i)) % pars_.lbfgs_m;
-        Scalar lbfgs_err_scalar = all_t_.col(col).dot(Eigen::Map<VectorX>(dir.data(), dir.size()));
-        Scalar eta = kersi(k - 1 - i) - lbfgs_err_scalar / rho(k - 1 - i);
+        fScalar lbfgs_err_fScalar = all_t_.col(col).dot(Eigen::Map<VectorX>(dir.data(), dir.size()));
+        fScalar eta = kersi(k - 1 - i) - lbfgs_err_fScalar / rho(k - 1 - i);
         Eigen::Map<VectorX>(dir.data(), dir.size()) += all_s_.col(col) * eta;
     }
 
@@ -391,7 +391,7 @@ void NonRigidreg::LBFGS(int iter, MatrixXX & dir) const
 }
 
 
-int NonRigidreg::QNSolver(Scalar& data_err, Scalar& smooth_err, Scalar& orth_err)
+int NonRigidreg::QNSolver(fScalar& data_err, fScalar& smooth_err, fScalar& orth_err)
 {
     MatrixXX prev_X;
     int count_linesearch = 0;
@@ -428,12 +428,12 @@ int NonRigidreg::QNSolver(Scalar& data_err, Scalar& smooth_err, Scalar& orth_err
             all_t_.col(col_idx_) = -Eigen::Map<VectorX>(grad_X_.data(), 4 * num_sample_nodes * 3);
         }
 
-        Scalar alpha = 2.0;
+        fScalar alpha = 2.0;
         prev_X = Smat_X_;
-        Scalar new_err = sample_energy(data_err, smooth_err, orth_err);
-        Scalar prev_err = new_err;
-        Scalar gamma = 0.3;
-        Scalar x = (grad_X_.transpose() * direction_).trace();
+        fScalar new_err = sample_energy(data_err, smooth_err, orth_err);
+        fScalar prev_err = new_err;
+        fScalar gamma = 0.3;
+        fScalar x = (grad_X_.transpose() * direction_).trace();
         do
         {
             alpha /= 2;
@@ -450,16 +450,16 @@ int NonRigidreg::QNSolver(Scalar& data_err, Scalar& smooth_err, Scalar& orth_err
     return iter;
 }
 
-Scalar NonRigidreg::welsch_error(Scalar nu1, Scalar nu2)
+fScalar NonRigidreg::welsch_error(fScalar nu1, fScalar nu2)
 {
     VectorX w_data = (Weight_PV_ * Smat_X_ - Smat_UP_).rowwise().norm();
-    Scalar data_err;
+    fScalar data_err;
     if(pars_.data_use_welsch)
         data_err = welsch_energy(w_data, nu1);
     else
         data_err = w_data.squaredNorm();
     VectorX s_data = ((Smat_B_ * Smat_X_ - Smat_D_)).rowwise().norm();
-    Scalar smooth_err;
+    fScalar smooth_err;
     if(pars_.smooth_use_welsch)
         smooth_err = welsch_energy(s_data, nu2);
     else
@@ -474,7 +474,7 @@ Scalar NonRigidreg::welsch_error(Scalar nu1, Scalar nu2)
     return data_err + pars_.alpha * smooth_err + pars_.beta * orth_errs.sum();
 }
 
-Scalar NonRigidreg::welsch_energy(VectorX& r, Scalar p) {
+fScalar NonRigidreg::welsch_energy(VectorX& r, fScalar p) {
     VectorX energy(r.rows());
 #pragma omp parallel for
     for (int i = 0; i<r.rows(); ++i) {
@@ -483,14 +483,14 @@ Scalar NonRigidreg::welsch_energy(VectorX& r, Scalar p) {
     return energy.sum();
 }
 
-void NonRigidreg::welsch_weight(VectorX& r, Scalar p) {
+void NonRigidreg::welsch_weight(VectorX& r, fScalar p) {
 #pragma omp parallel for
     for (int i = 0; i<r.rows(); ++i) {
         r(i) = std::exp(-r(i)*r(i) / (2 * p*p));
     }
 }
 
-Scalar NonRigidreg::SetMeshPoints(Mesh* mesh, const MatrixXX & target, MatrixXX& cur_v)
+fScalar NonRigidreg::SetMeshPoints(Mesh* mesh, const MatrixXX & target, MatrixXX& cur_v)
 {
     VectorX gt_errs(n_src_vertex_);
 #pragma omp parallel for

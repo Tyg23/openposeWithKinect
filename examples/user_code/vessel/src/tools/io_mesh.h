@@ -107,7 +107,7 @@ bool read_data(const std::string filename, Mesh& mesh)
     return false;
 }
 
-bool write_data(const char* filename, Mesh& mesh, Scalar scale)
+bool write_data(const char* filename, Mesh& mesh, fScalar scale)
 {
     for (Mesh::VertexIter v_it = mesh.vertices_begin(); v_it != mesh.vertices_end(); ++v_it)
     {
@@ -141,4 +141,3 @@ std::string num2str(int num, const int size, bool is_add0)
     std::string s_num(s_id);
     return s_num.substr(pos, size-pos);
 }
-
