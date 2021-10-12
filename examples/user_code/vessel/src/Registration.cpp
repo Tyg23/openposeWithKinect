@@ -1,203 +1,14 @@
 #include "Registration.h"
 #include <median.h>
 #include <iostream>
-#include <json/reader.h>
 #include <unordered_map>
-#include <workutils.h>
+// #include <workutils.h>
 
 #if (__cplusplus >= 201402L) || (defined(_MSC_VER) && _MSC_VER >= 1800)
 #define MAKE_UNIQUE std::make_unique
 #else
 #define MAKE_UNIQUE company::make_unique
 #endif
-
-/*
-void LocateVesselOnSurface()
-{ 
-    OpenMesh::IO::Options opt_read = OpenMesh::IO::Options::VertexNormal;
-    OpenMesh::TriMesh_ArrayKernelT<> src;
-    OpenMesh::IO::read_mesh(src,"arm3.obj");
-    int n = src.n_vertices();
-    std::cout<<"n::"<<n<<std::endl;
-    MatrixXX src_points;
-    //将tar_points_设置为3*n_t的矩阵
-    src_points.resize(3, n);
-    //将target顶点存入tar_points_中
-    for (int i = 0; i < n; i++)
-    {
-        src_points(0, i) = src.point(src.vertex_handle(i))[0];
-        src_points(1, i) = src.point(src.vertex_handle(i))[1];
-        src_points(2, i) = src.point(src.vertex_handle(i))[2];
-    }
-    KDtree* srctree=new KDtree(src_points);
-    Json::Value root;
-    Json::Reader reader;
-    std::ifstream ifs("Centerline curve.json");
-    if(!reader.parse(ifs,root))
-    {
-        std::cout<<"fail to open json"<<std::endl;
-    }
-    else
-    {
-        std::cout<<"successful to open json"<<std::endl;
-        // const Json::Value markups=root["markups"];
-        const Json::Value markups = root["markups"];
-        auto arr1=markups[0];
-        auto points=arr1["controlPoints"];
-        std::vector<float*> selectpoint;
-        std::cout<<points.size()<<std::endl;
-        for (int i = 0; i < points.size(); i++)
-        {
-            float* p=new float[3];
-            p[0]=points[i]["position"][0].asFloat();
-            p[1]=points[i]["position"][1].asFloat();
-            p[2]=points[i]["position"][2].asFloat();
-            selectpoint.push_back(p);
-        }
-        std::ofstream file4("vessel2.txt");
-        for (size_t i = 0; i < points.size(); i++)
-        {
-            for (size_t j = 0; j < 3; j++)
-            {
-                file4<<selectpoint[i][j]<<" ";
-            }
-            file4<<std::endl;
-        }
-
-        std::vector<float*> srcpoints;
-        for (int i = 0; i < points.size(); i++)
-        {
-            fScalar mini_dist;
-            //通过KDtree寻找距离source mesh点对应的最近的target上的点，并将最小距离存入mini_dist
-
-            int idx = srctree->closest(selectpoint[i], mini_dist);
-            std::cout<<"idx::::"<<idx<<std::endl;
-            std::cout<<"Minidist::::"<<mini_dist<<std::endl;
-            srcpoints.push_back(src_points.col(idx).data());   
-                  
-        }
-        std::cout<<src.point(src.vertex_handle(1)).data()[0]<<std::endl;
-        std::ofstream file3("vessel.txt");
-        for (size_t i = 0; i < points.size(); i++)
-        {
-            for (size_t j = 0; j < 3; j++)
-            {
-                file3<<srcpoints[i][j]<<" ";
-                // file3<<src_points(j,i)<<" ";
-                // file3<<src.point(src.vertex_handle(i)).data()[j]<<" ";
-            }
-            file3<<std::endl;
-        }
-        std::cout<<"successful"<<std::endl;
-    }
-}
-
-MatrixXX loadPointsfromTxt(std::string filename)
-{
-    std::ifstream pointsFile(filename);
-	assert(pointsFile.is_open());
-	std::string line;
-    MatrixXX points;
-    int n=0;
-    while (std::getline(pointsFile, line))
-	{
-        n++;
-	}
-    pointsFile.close();
-    std::ifstream pointsFile2(filename);
-    points.resize(3,n);
-    int j=0;
-	while (std::getline(pointsFile2, line))
-	{
-		std::stringstream ss(line);
-		for (size_t i = 0; i<3; i++)
-		{
-			ss >> points(i, j);
-		}
-        j++;
-	}
-
-    return points;
-}
-
-void LocateTrajectoryOnSurface()
-{ 
-    MatrixXX src_points;
-    src_points=loadPointsfromTxt("pcdsource4.txt");
-    KDtree* srctree=new KDtree(src_points);
-
-    MatrixXX vel_points;
-    vel_points=loadPointsfromTxt("vessel.txt");
-    float *p=new float[3];
-    std::vector<int> srcpoints;
-        for (int i = 0; i < vel_points.cols(); i++)
-        {
-            fScalar mini_dist;
-            //通过KDtree寻找距离source mesh点对应的最近的target上的点，并将最小距离存入mini_dist
-            for (size_t j = 0; j < 3; j++)
-            {
-                p[j]=vel_points(j,i);
-            }
-            
-            int idx = srctree->closest(p, mini_dist);
-            // std::cout<<"idx::::"<<idx<<std::endl;
-            // std::cout<<"Minidist::::"<<mini_dist<<std::endl;
-            // srcpoints.push_back(src_points.col(idx).data());  
-            srcpoints.push_back(idx);                  
-        }
-
-    std::cout<<srcpoints.size()<<" gggggggggggggggggg"<<std::endl;
-    MatrixXX tar_points;
-    tar_points=loadPointsfromTxt("pcdtarget4.txt");
-
-    std::ofstream file3("tar.txt");
-        for (size_t i = 0; i < srcpoints.size(); i++)
-        {
-            // file3<<srcpoints[i]<<std::endl;
-            for (size_t j = 0; j < 3; j++)
-            {
-                file3<<tar_points(j,srcpoints[i])<<" ";
-            }
-            file3<<std::endl;
-        }
-    std::cout<<"successfullllll"<<std::endl;
-}
-
-
-
-bool read_data2(const std::string filename, Mesh& mesh)
-{
-    OpenMesh::IO::Options opt_read = OpenMesh::IO::Options::VertexNormal;
-    mesh.request_vertex_normals();
-    bool read_OK = OpenMesh::IO::read_mesh(mesh, filename,opt_read);
-
-	std::cout << "filename = " << filename << std::endl;
-    if (read_OK)
-    {
-        mesh.request_vertex_status();
-        mesh.request_edge_status();
-        mesh.request_face_status();
-
-        mesh.request_face_normals();
-        // printBasicMeshInfo(mesh);
-
-        mesh.update_face_normals();
-        if(mesh.n_faces()>0)
-            mesh.update_vertex_normals();
-
-        Vec3 MeshScales;
-        MeshScales[0] = 0.0; MeshScales[1] = 0.0; MeshScales[2] = 0.0;
-        for (Mesh::VertexIter v_it = mesh.vertices_begin(); v_it != mesh.vertices_end(); ++v_it)
-        {
-            MeshScales += mesh.point(*v_it);
-        }
-        MeshScales /= mesh.n_vertices();
-        return true;
-    }
-    std::cout << "#vertices = " << mesh.n_vertices() << std::endl;
-    return false;
-}
-*/
 
 Registration::Registration() {
     target_tree = NULL;
@@ -225,12 +36,8 @@ void Registration::rigid_init(Mesh & src_mesh, Mesh & tar_mesh, RegParas& paras)
     //tar_mesh为目标模型
     tar_mesh_ = new Mesh;
 
-    workutils::initialAlign(name2,1);
-
-    workutils::read_data("tranformedTarget.ply",*tar_mesh_);
-
     src_mesh_ = &src_mesh;
-    // tar_mesh_ = &tar_mesh;
+    tar_mesh_ = &tar_mesh;
     //pars_为参数集
     pars_ = paras;
     //输入mesh文件，获取顶点
@@ -251,9 +58,6 @@ void Registration::rigid_init(Mesh & src_mesh, Mesh & tar_mesh, RegParas& paras)
         tar_points_(1, i) = tar_mesh_->point(tar_mesh_->vertex_handle(i))[1];
         tar_points_(2, i) = tar_mesh_->point(tar_mesh_->vertex_handle(i))[2];
     }
-
-    // LocateVesselOnSurface();
-    // LocateTrajectoryOnSurface();
 
     // construct kd Tree
     target_tree = new KDtree(tar_points_);
@@ -380,6 +184,7 @@ fScalar Registration::DoRigid()
         FindClosestPoints(correspondence_pairs_);
         SimplePruning(correspondence_pairs_, pars_.use_distance_reject, pars_.use_normal_reject);
     }
+    /*
     OpenMesh::IO::write_mesh(*src_mesh_,"hh.obj");
     std::ofstream file1("pcdsource2.txt");
     std::ofstream file2("pcdtarget2.txt");
@@ -402,6 +207,7 @@ fScalar Registration::DoRigid()
         <<source_mesh_->point(source_mesh_->vertex_handle(it->src_idx))[1]<<" "
         <<source_mesh_->point(source_mesh_->vertex_handle(it->src_idx))[2]<<std::endl;
     }
+    */
 
     std::cout<<"刚性配准次数："<<nn<<std::endl;
     return 0;
@@ -435,7 +241,7 @@ void Registration::FindClosestPoints(VPairs & corres)
 }
 
 //简单优化点对
-void Registration::SimplePruning(VPairs & corres, bool use_distance = true, bool use_normal = true)
+void Registration::SimplePruning(VPairs & corres, bool use_distance = true, bool use_normal = false)
 {
     // Distance and normal
     VectorX tar_min_dists(n_tar_vertex_);//tar_min_dists为n_t行的矩阵
@@ -452,6 +258,7 @@ void Registration::SimplePruning(VPairs & corres, bool use_distance = true, bool
         //计算点对间的距离
         fScalar dist = (src_mesh_->point(src_mesh_->vertex_handle(corres[i].src_idx))
                        - Eigen2Vec(closet)).norm();
+        // std::cout<<dist<<std::endl;
 
         Vec3 src_normal = src_mesh_->normal(src_mesh_->vertex_handle(corres[i].src_idx));
         Vec3 tar_normal = Eigen2Vec(corres[i].normal);
@@ -521,7 +328,9 @@ void Registration::LandMarkCorres(VPairs & corres)
 void Registration::InitCorrespondence(VPairs & corres)
 {
     FindClosestPoints(corres);//通过最小距离初始化点对
-    // SimplePruning(corres);//优化点对
+    std::cout<<"修剪前："<<corres.size()<<std::endl;
+    SimplePruning(corres);//优化点对
+    std::cout<<"修剪后："<<corres.size()<<std::endl;
 
     //没有landmark
     if(pars_.use_landmark)

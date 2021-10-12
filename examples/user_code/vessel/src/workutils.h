@@ -4,6 +4,7 @@
 #include <pcl/common/transforms.h>
 #include <pcl/io/ply_io.h>
 #include <pcl/visualization/cloud_viewer.h>
+#include <json/reader.h>
 
 class workutils
 {
@@ -14,11 +15,11 @@ public:
     ~workutils();
     static void LocateVesselOnSurface();
     static MatrixXX loadPointsfromTxt(std::string filename);
-    static void LocateTrajectoryOnSurface();
+    static void LocateTrajectoryOnSurface(int isUpperArm);
     static bool read_data(const std::string filename, Mesh& mesh);
     static void calRotation(Eigen::Vector3f u, Eigen::Vector3f v, double &angle, Eigen::Vector3f &vec);
     static Eigen::Matrix4f RodriguesMatrixTranslation(Eigen::Vector3f n, double angle);
-    static void initialAlign(std::string PLYfilename,int isUpperArm);
+    static Eigen::Matrix4f initialAlign(std::string PLYfilename,int isUpperArm);
     static pcl::PointCloud<pcl::PointXYZ>::Ptr getCloudFromText(std::string filename);
     static pcl::PointCloud<pcl::PointXYZ>::Ptr getCloudFromPLY(std::string filename);
 };
@@ -141,10 +142,25 @@ void workutils::LocateVesselOnSurface()
     }
 }
 
-void workutils::LocateTrajectoryOnSurface()
+void workutils::LocateTrajectoryOnSurface(int isUpperArm)
 { 
     MatrixXX src_points;
-    src_points=loadPointsfromTxt("pcdsource4.txt");
+    std::string fileNamesrc;
+    std::string fileNametar;
+    std::string fileNameRes;
+    if(isUpperArm==1)
+    {
+        fileNamesrc="Uppersource.txt";
+        fileNametar="Uppertarget.txt";
+        fileNameRes="UpperResult.txt";
+    }
+    else
+    {
+        fileNamesrc="Lowersource.txt";
+        fileNametar="Lowertarget.txt";
+        fileNameRes="LowerResult.txt";
+    }
+    src_points=loadPointsfromTxt(fileNamesrc);
     KDtree* srctree=new KDtree(src_points);
 
     MatrixXX vel_points;
@@ -167,22 +183,21 @@ void workutils::LocateTrajectoryOnSurface()
             srcpoints.push_back(idx);                  
         }
 
-    std::cout<<srcpoints.size()<<" gggggggggggggggggg"<<std::endl;
+    // std::cout<<srcpoints.size()<<" gggggggggggggggggg"<<std::endl;
     MatrixXX tar_points;
-    tar_points=loadPointsfromTxt("pcdtarget4.txt");
+    tar_points=loadPointsfromTxt(fileNametar);
 
-    std::ofstream file3("tar.txt");
+    std::ofstream file(fileNameRes);
         for (size_t i = 0; i < srcpoints.size(); i++)
         {
             // file3<<srcpoints[i]<<std::endl;
             for (size_t j = 0; j < 3; j++)
             {
-                file3<<tar_points(j,srcpoints[i])<<" ";
+                file<<tar_points(j,srcpoints[i])<<" ";
             }
-            file3<<std::endl;
+            file<<std::endl;
         }
     std::cout<<"successfullllll"<<std::endl;
-
 }
 
 MatrixXX workutils::loadPointsfromTxt(std::string filename)
@@ -284,7 +299,7 @@ Eigen::Matrix4f workutils::RodriguesMatrixTranslation(Eigen::Vector3f n, double 
 	return  x_transform;
 }
 
-void workutils::initialAlign(std::string PLYfilename,int isUpperArm)
+Eigen::Matrix4f workutils::initialAlign(std::string PLYfilename,int isUpperArm)
 {
     pcl::PointCloud<pcl::PointXYZ>::Ptr cloud;
     std::ifstream file1("sourcefeature.txt");
@@ -331,18 +346,18 @@ void workutils::initialAlign(std::string PLYfilename,int isUpperArm)
 	//平移目标点云，将目标点云通过质心平移到原点
 	Eigen::Matrix4f translation_t = Eigen::Matrix4f::Identity();
 	//设置矩阵的元素
-	translation_t(0, 3) = -ptar(0,1-isUpperArm);
-	translation_t(1, 3) = -ptar(1,1-isUpperArm);
-	translation_t(2, 3) = -ptar(2,1-isUpperArm);
+	translation_t(0, 3) = -ptar(0,2-isUpperArm);
+	translation_t(1, 3) = -ptar(1,2-isUpperArm);
+	translation_t(2, 3) = -ptar(2,2-isUpperArm);
 	pcl::transformPointCloud(*target, *target_t, translation_t);
 
 	// pcl::PointCloud<pcl::PointXYZ>::Ptr source_t(new pcl::PointCloud<pcl::PointXYZ>);
 	//平移源点云，将源点云通过质心平移到原点
 	Eigen::Matrix4f translation_s = Eigen::Matrix4f::Identity();
 	//设置矩阵的元素
-	translation_s(0, 3) = psrc(0,1-isUpperArm);
-	translation_s(1, 3) = psrc(1,1-isUpperArm);
-	translation_s(2, 3) = psrc(2,1-isUpperArm);
+	translation_s(0, 3) = psrc(0,2-isUpperArm);
+	translation_s(1, 3) = psrc(1,2-isUpperArm);
+	translation_s(2, 3) = psrc(2,2-isUpperArm);
 	// pcl::transformPointCloud(*source, *source_t, translation_s);
 
 	pcl::PointCloud<pcl::PointXYZ>::Ptr translationCloud(new pcl::PointCloud<pcl::PointXYZ>);
@@ -361,17 +376,29 @@ void workutils::initialAlign(std::string PLYfilename,int isUpperArm)
 	pcl::PointCloud<pcl::PointXYZ>::Ptr transformedCloud(new pcl::PointCloud<pcl::PointXYZ>);
 	pcl::transformPointCloud(*translationCloud, *transformedCloud, translation_s);
     pcl::PLYWriter plywriter;
-    plywriter.write("tranformedTarget.ply",*transformedCloud);
-    pcl::visualization::PCLVisualizer viewer("Viewer");
-    viewer.initCameraParameters();
-    viewer.setBackgroundColor(0.1,0.1,0.1);
-	// viewer.addCoordinateSystem(0.5);
-    pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> color_v2(transformedCloud, 255, 10, 0);
-    viewer.addPointCloud<pcl::PointXYZ>(transformedCloud,color_v2,"cc");	
-    while (!viewer.wasStopped())
-	{
-		viewer.spinOnce(100);
-	}
+    std::string fileName;
+    if(isUpperArm==1)
+    {
+        fileName="transformedTargetUpper.ply";
+    }
+    else
+    {
+        fileName="transformedTargetLower.ply";
+    }
+    plywriter.write(fileName,*transformedCloud);
+    Eigen::Matrix4f transform(Eigen::Matrix4f::Identity());
+    transform=translation_s*vM[isUpperArm]*translation_t;
+    return transform;
+    // pcl::visualization::PCLVisualizer viewer("Viewer");
+    // viewer.initCameraParameters();
+    // viewer.setBackgroundColor(0.1,0.1,0.1);
+	// // viewer.addCoordinateSystem(0.5);
+    // pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> color_v2(transformedCloud, 255, 10, 0);
+    // viewer.addPointCloud<pcl::PointXYZ>(transformedCloud,color_v2,"cc");	
+    // while (!viewer.wasStopped())
+	// {
+	// 	viewer.spinOnce(100);
+	// }
 }
 
 workutils::workutils(/* args */)

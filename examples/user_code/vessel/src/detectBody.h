@@ -272,9 +272,9 @@ std::vector<k4a_float2_t> segment(cv::Mat image)
     std::vector<k4a_float2_t> segedPixels;
 
     cv::Mat ii_image = cv::Mat::zeros(cv::Size(1280, 720), CV_8UC1);
-    std::ofstream infile("arm.txt");
-	assert(infile.is_open());
-    std::cout<<"writing"<<std::endl;
+    // std::ofstream infile("arm.txt");
+	// assert(infile.is_open());
+    // std::cout<<"writing"<<std::endl;
     for (size_t i = 0; i < 720; i++)
     {
         for (size_t j = 0; j < 1280; j++)
@@ -285,13 +285,13 @@ std::vector<k4a_float2_t> segment(cv::Mat image)
                 pixel.xy.x=j;
                 pixel.xy.y=i;
                 segedPixels.push_back(pixel);
-                ii_image.at<unsigned char>(i,j)=255;
-                infile<<pixel.xy.x<<" "<<pixel.xy.y<<std::endl;
+                // ii_image.at<unsigned char>(i,j)=255;
+                // infile<<pixel.xy.x<<" "<<pixel.xy.y<<std::endl;
             }
         }        
     }
-    std::cout<<"writing"<<std::endl;
-    cv::imwrite("./Result_co.jpg", ii_image);
+    // std::cout<<"writing"<<std::endl;
+    // cv::imwrite("./Result_co.jpg", ii_image);
 
     cv::imwrite("./Result_image.jpg", Result_image);
 
@@ -306,7 +306,7 @@ std::vector<k4a_float2_t> segment(cv::Mat image)
     return segedPixels;
 }
 
-int work(int argc, char *argv[])
+int work()
 {
     // Parsing command line flags
     // gflags::ParseCommandLineFlags(&argc, &argv, true);

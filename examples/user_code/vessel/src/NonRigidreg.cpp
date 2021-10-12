@@ -279,26 +279,6 @@ fScalar NonRigidreg::DoNonRigid()
         pars_.beta = ori_beta * 2 * nu1 * nu1;
     }
     std::cout<<"变形配准后的点对数："<<correspondence_pairs_.size()<<std::endl;
-    // std::ofstream file1("pcdsource.txt");
-    // std::ofstream file2("pcdtarget.txt");
-    // Mesh source_mesh,target_mesh;
-    // read_data2("11 - Cloud0825.obj", source_mesh);
-    // read_data2("22 - Cloud0825.obj", target_mesh);
-    // Mesh* source_mesh_;
-    // Mesh* target_mesh_;
-    // source_mesh_=&source_mesh;
-    // target_mesh_=&target_mesh;
-    // for(auto it=correspondence_pairs_.begin();it!=correspondence_pairs_.end();it++)
-    // {
-    //     // file2<<it->position(0)<<" "<<it->position(1)<<" "<<it->position(2)<<std::endl;
-    //     file2<<target_mesh_->point(target_mesh_->vertex_handle(it->tar_idx))[0]+1<<" "
-    //     <<target_mesh_->point(target_mesh_->vertex_handle(it->tar_idx))[1]+1<<" "
-    //     <<target_mesh_->point(target_mesh_->vertex_handle(it->tar_idx))[2]+1<<std::endl;
-    //     file1<<source_mesh_->point(source_mesh_->vertex_handle(it->src_idx))[0]<<" "
-    //     <<source_mesh_->point(source_mesh_->vertex_handle(it->src_idx))[1]<<" "
-    //     <<source_mesh_->point(source_mesh_->vertex_handle(it->src_idx))[2]<<std::endl;
-    // }
-
     return 0;
 }
 
