@@ -542,22 +542,22 @@ int work(int argc, char *argv[])
     float k1=-1/getSlope(pixels[0],pixels[1]);
     float k2=-1/getSlope(pixels[1],pixels[2]);
     std::vector<k4a_float2_t> clipPixels;
-    for (size_t i = 0; i < 8; i++)
+    for (size_t i = 0; i < 16; i++)
     {
         clipPixels.push_back(getP(k1, pixels[0], i, -1));
         clipPixels.push_back(getP(k1, pixels[0], i, 1));
     }
-    for (size_t i = 0; i < 8; i++)
+    for (size_t i = 0; i < 16; i++)
     {
         clipPixels.push_back(getP(k1, pixels[1], i, -1));
         clipPixels.push_back(getP(k1, pixels[1], i, 1));
     }
-    for (size_t i = 0; i < 8; i++)
+    for (size_t i = 0; i < 16; i++)
     {
         clipPixels.push_back(getP(k2, pixels[1], i, -1));
         clipPixels.push_back(getP(k2, pixels[1], i, 1));
     }
-    for (size_t i = 0; i < 8; i++)
+    for (size_t i = 0; i < 16; i++)
     {
         clipPixels.push_back(getP(k2, pixels[2], i, -1));
         clipPixels.push_back(getP(k2, pixels[2], i, 1));

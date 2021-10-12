@@ -37,6 +37,15 @@ bool pointPlane(float a, float b, float c, float d, float x, float y, float z, f
         return false;
 }
 
+bool pointPlane(float a, float b, float c, float d, float x, float y, float z)
+{
+    float dis=a*x+b*y+c*z+d;
+    if(dis>=0)
+        return true;
+    else
+        return false;
+}
+
 bool clip()
 {
     pcl::PointCloud<pcl::PointXYZ>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZ>);
@@ -51,7 +60,7 @@ bool clip()
     assert(file.is_open());
     std::string line;
     int n=0;
-    for (size_t i = 0; i < 16; i++)
+    for (size_t i = 0; i < 32; i++)
     {
         std::getline(file,line);
         pcl::PointXYZ point;
@@ -59,7 +68,7 @@ bool clip()
         ss>>point.x>>point.y>>point.z;
         cloud1->push_back(point);
     }
-    for (size_t i = 0; i < 16; i++)
+    for (size_t i = 0; i < 32; i++)
     {
         std::getline(file,line);
         pcl::PointXYZ point;
@@ -67,7 +76,7 @@ bool clip()
         ss>>point.x>>point.y>>point.z;
         cloud2->push_back(point);
     }
-    for (size_t i = 0; i < 16; i++)
+    for (size_t i = 0; i < 32; i++)
     {
         std::getline(file,line);
         pcl::PointXYZ point;
@@ -75,7 +84,7 @@ bool clip()
         ss>>point.x>>point.y>>point.z;
         cloud3->push_back(point);
     }
-    for (size_t i = 0; i < 16; i++)
+    for (size_t i = 0; i < 32; i++)
     {
         std::getline(file,line);
         pcl::PointXYZ point;
@@ -97,7 +106,7 @@ bool clip()
     // Mandatory
     seg.setModelType(pcl::SACMODEL_PLANE);
     seg.setMethodType(pcl::SAC_RANSAC);
-    seg.setDistanceThreshold(0.5);
+    seg.setDistanceThreshold(0.1);
 
     seg.setInputCloud(cloud1);
     seg.segment (*inliers, *coefficients);
@@ -141,53 +150,31 @@ bool clip()
     for (size_t i = 0; i < 4; i++)
     {
         std::cout << coefficients->values[i] << std::endl;
-    }
-
-    std::ifstream file2("featureXYZ.txt");
-    assert(file2.is_open());
-    std::string line2;
-    
-    pcl::PointCloud<pcl::PointXYZ>::Ptr cloud5(new pcl::PointCloud<pcl::PointXYZ>);
-
-    while (std::getline(file2,line2))
-    {
-        pcl::PointXYZ point;
-        std::stringstream ss(line2);
-        ss>>point.x>>point.y>>point.z;
-        cloud5->push_back(point);
-    }
-
-    int index1=0,index2=1;
-    float distance=sqrt(pow((cloud5->points[index1].x-cloud5->points[index2].x),2)+pow((cloud5->points[index1].y-cloud5->points[index2].y),2)
-    +pow((cloud5->points[index1].z-cloud5->points[index2].z),2));
-    std::cout<<"distance: "<<distance<<std::endl;
+    }   
 
     pcl::PointCloud<pcl::PointXYZ>::Ptr segedcloud(new pcl::PointCloud<pcl::PointXYZ>);
     for (size_t i = 0; i < cloud->size(); i++)
     {
-        if(pointPlane(A[0],B[0],C[0],D[0],cloud->points[i].x,cloud->points[i].y,cloud->points[i].z,distance)
-        &&pointPlane(A[1],B[1],C[1],D[1],cloud->points[i].x,cloud->points[i].y,cloud->points[i].z,distance)
+        if(!pointPlane(A[0],B[0],C[0],D[0],cloud->points[i].x,cloud->points[i].y,cloud->points[i].z)
+        &&pointPlane(A[1],B[1],C[1],D[1],cloud->points[i].x,cloud->points[i].y,cloud->points[i].z)
         )
         {
             segedcloud->push_back(cloud->points[i]);
         }
     }
 
-    int index3=1,index4=2;
-    float distance2=sqrt(pow((cloud5->points[index3].x-cloud5->points[index4].x),2)+pow((cloud5->points[index3].y-cloud5->points[index4].y),2)
-    +pow((cloud5->points[index3].z-cloud5->points[index4].z),2));
-    std::cout<<"distance2: "<<distance2<<std::endl;
-
     pcl::PointCloud<pcl::PointXYZ>::Ptr segedcloud2(new pcl::PointCloud<pcl::PointXYZ>);
     for (size_t i = 0; i < cloud->size(); i++)
     {
-        if(pointPlane(A[2],B[2],C[2],D[2],cloud->points[i].x,cloud->points[i].y,cloud->points[i].z,distance2)
-        &&pointPlane(A[3],B[3],C[3],D[3],cloud->points[i].x,cloud->points[i].y,cloud->points[i].z,distance2)
+        if(!pointPlane(A[2],B[2],C[2],D[2],cloud->points[i].x,cloud->points[i].y,cloud->points[i].z)
+        &&
+        pointPlane(A[3],B[3],C[3],D[3],cloud->points[i].x,cloud->points[i].y,cloud->points[i].z)
         )
         {
             segedcloud2->push_back(cloud->points[i]);
         }
     }
+
     pcl::io::savePLYFile("segedArm1.ply",*segedcloud);
     pcl::io::savePLYFile("segedArm2.ply",*segedcloud2);
     return true;
