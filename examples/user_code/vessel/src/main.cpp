@@ -22,7 +22,7 @@ void match(std::string src, std::string tar,std::string matchName,int isUpperArm
 
     paras.use_distance_reject = true;
     // paras.distance_threshold = 0.05;
-    paras.distance_threshold = 500;
+    paras.distance_threshold = 0.5;
     paras.use_normal_reject = false;
     paras.normal_threshold = M_PI / 3;
     paras.use_Dynamic_nu = true;
@@ -120,8 +120,8 @@ void match(std::string src, std::string tar,std::string matchName,int isUpperArm
 
 int main()
 {
-    // work();
-    match("AtlasUpper.obj","segedArm11.ply","Upper",1);
-    match("AtlasLower.obj","segedArm22.ply","Lower",0);
+    work();
+    match("AtlasUpper.obj","segedArm1.ply","Upper",1);
+    match("AtlasLower.obj","segedArm2.ply","Lower",0);
     return 0;
 }

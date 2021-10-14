@@ -22,6 +22,7 @@
 #include <chrono>
 #include <string>
 #include <clipArm.h>
+#include <queue>
 
 // Custom OpenPose flags
 // Producer
@@ -101,6 +102,8 @@ void printKeypoints(const std::shared_ptr<std::vector<std::shared_ptr<op::Datum>
                 p.xy.y = poseKeypoints[{0, i, 1}];
                 pixels.push_back(p);
             }
+            pixels[0].xy.x=pixels[0].xy.x/3+pixels[1].xy.x*2/3;
+            pixels[0].xy.y=pixels[0].xy.y/3+pixels[1].xy.y*2/3;
             
             op::opLog(" ", op::Priority::High);
         }
@@ -169,6 +172,313 @@ k4a_float2_t getP(float k,const k4a_float2_t p,float distance,int flag)
     pp.xy.x=p.xy.x+distance*flag;
     pp.xy.y=k*(pp.xy.x-p.xy.x)+p.xy.y;
     return pp;
+}
+
+
+float getDiv(std::queue<k4a_float2_t> pixels,cv::Mat img)
+{
+    float div=0;
+    // for (size_t i = 0; i < 3; i++)
+    // {
+        if (pixels.back().xy.y > 0 && pixels.back().xy.y < 720 && pixels.back().xy.x < 1280 && pixels.back().xy.x > 0)
+        {
+            // div += img.at<cv::Vec3b>(pixels.back().xy.y, pixels.back().xy.x)[i] - img.at<cv::Vec3b>(pixels.front().xy.y, pixels.front().xy.x)[i];
+            div = img.at<uint16_t>(pixels.back().xy.y, pixels.back().xy.x) - img.at<uint16_t>(pixels.front().xy.y, pixels.front().xy.x);
+        
+        }
+        else
+        {
+            std::cout<<"****像素超出范围*****"<<std::endl;
+            return 1000;
+        }
+    // }
+    return div;
+}
+
+std::vector<k4a_float2_t> segmentPixels(std::vector<k4a_float2_t> featurePixels,cv::Mat src,int k,cv::Mat img)
+{
+    cv::Mat grad_x, grad_y;
+    cv::Mat abs_grad_x, abs_grad_y, sobelDst;
+
+    //求 X方向梯度
+    cv::Sobel(src, grad_x, CV_16S, 1, 0, 3, 1, 1, cv::BORDER_DEFAULT);
+    cv::convertScaleAbs(grad_x, abs_grad_x);
+    // namedWindow("X方向Sobel", 0);
+    // imshow("X方向Sobel", abs_grad_x);
+
+    //求Y方向梯度
+    cv::Sobel(src, grad_y, CV_16S, 0, 1, 3, 1, 1, cv::BORDER_DEFAULT);
+    cv::convertScaleAbs(grad_y, abs_grad_y);
+    // namedWindow("Y方向Sobel", 0);
+    // imshow("Y方向Sobel", abs_grad_y);
+
+    //合并梯度(近似)
+    cv::addWeighted(abs_grad_x, 0.5, abs_grad_y, 0.5, 0, sobelDst);
+    // namedWindow("整体方向Sobel", 0);
+    // imshow("整体方向Sobel", sobelDst);
+    sobelDst=src.clone();
+
+    //根据像素值提取边缘
+    std::vector<k4a_float2_t> armCenterLine1;
+    std::vector<k4a_float2_t> armCenterLine2;
+    float k1 = getSlope(featurePixels[0], featurePixels[1]);
+    float k2 = getSlope(featurePixels[1], featurePixels[2]);
+    for (float i = 0; i < int(featurePixels[0].xy.x - featurePixels[1].xy.x) * 4; i++)
+    {
+        armCenterLine1.push_back(getP(k1, featurePixels[1], i / 4, 1));
+    }
+    for (float i = 0; i < int(featurePixels[1].xy.x - featurePixels[2].xy.x) * 4; i++)
+    {
+        armCenterLine2.push_back(getP(k2, featurePixels[2], i / 4, 1));
+    }
+
+    float k11 = -1 / k1;
+    float k22 = -1 / k2;
+    std::vector<k4a_float2_t> segPixels;
+
+    //开始分割
+    int plk=2;
+    std::queue<float> distance1;
+    for (size_t i = 0; i < armCenterLine1.size(); i++)
+    {
+        std::queue<k4a_float2_t> pixels;
+        float n = 0;
+        //预存一些参照像素
+        for (n = 0; n < 2; n+=0.2)
+        {
+            k4a_float2_t p = getP(k11, armCenterLine1[i], n, 1);
+            pixels.push(p);
+            segPixels.push_back(p);
+        }
+        float dis = 0;
+        //预存一些像素长度
+        if (i < 2)
+        {
+            while (getDiv(pixels, sobelDst) < k)
+            {
+                // std::cout<<"kkkkkkkkk"<<std::endl;
+                k4a_float2_t p = getP(k11, armCenterLine1[i], n, 1);
+                dis = sqrt(pow(p.xy.x - armCenterLine1[i].xy.x, 2) + pow(p.xy.y - armCenterLine1[i].xy.y, 2));
+                pixels.push(p);
+                segPixels.push_back(p);
+                pixels.pop();
+                n += 0.2;
+            }
+            distance1.push(dis);
+            continue;
+        }
+        //分割图像
+        while (getDiv(pixels, sobelDst) < k+plk)
+        {
+            k4a_float2_t p = getP(k11, armCenterLine1[i], n, 1);
+            dis = sqrt(pow(p.xy.x - armCenterLine1[i].xy.x, 2) + pow(p.xy.y - armCenterLine1[i].xy.y, 2));
+            //如果长度过长则剪断
+            if (distance1.back() - dis > -0.1)
+            {
+                pixels.push(p);
+                segPixels.push_back(p);
+                pixels.pop();
+            }
+            else
+            {
+                break;
+            }
+            if (!(p.xy.y > 0 && p.xy.y < 720 && p.xy.x < 1280 && p.xy.x > 0))
+            {
+                break;
+            }
+            n += 0.2;
+        }
+        distance1.push(dis);
+        distance1.pop();
+    }
+    std::cout << "11111111111" << std::endl;
+
+
+    std::queue<float> distance2;
+    for (size_t i = 0; i < armCenterLine1.size(); i++)
+    {
+        std::queue<k4a_float2_t> pixels;
+        float n = 0;
+        for (n = 0; n < 2; n+=0.2)
+        {
+            k4a_float2_t p = getP(k11, armCenterLine1[i], n, -1);
+            pixels.push(p);
+            segPixels.push_back(p);
+        }
+
+        float dis = 0;
+        if (i < 2)
+        {
+            while (getDiv(pixels, sobelDst) < k)
+            {
+                k4a_float2_t p = getP(k11, armCenterLine1[i], n, -1);
+                dis = sqrt(pow(p.xy.x - armCenterLine1[i].xy.x, 2) + pow(p.xy.y - armCenterLine1[i].xy.y, 2));
+                pixels.push(p);
+                segPixels.push_back(p);
+                pixels.pop();
+                n += 0.2;
+            }
+            distance2.push(dis);
+            continue;
+        }
+        while (getDiv(pixels, sobelDst) < k+plk)
+        {
+            k4a_float2_t p = getP(k11, armCenterLine1[i], n, -1);
+            dis = sqrt(pow(p.xy.x - armCenterLine1[i].xy.x, 2) + pow(p.xy.y - armCenterLine1[i].xy.y, 2));
+            if (distance2.back() - dis > -0.1)
+            {
+                pixels.push(p);
+                segPixels.push_back(p);
+                pixels.pop();
+            }
+            else
+            {
+                break;
+            }
+            if (!(p.xy.y > 0 && p.xy.y < 720 && p.xy.x < 1280 && p.xy.x > 0))
+            {
+                break;
+            }
+            n += 0.2;
+        }
+        distance2.push(dis);
+        distance2.pop();
+    }
+    std::cout << "2222222222" << std::endl;
+
+
+
+    std::queue<float> distance3;
+    for (size_t i = 0; i < armCenterLine2.size(); i++)
+    {
+        std::queue<k4a_float2_t> pixels;
+        float n = 0;
+        for (n = 0; n < 2; n+=0.2)
+        {
+            k4a_float2_t p = getP(k22, armCenterLine2[i], n, 1);
+            pixels.push(p);
+            segPixels.push_back(p);
+        }
+        float dis = 0;
+        if (i < 3)
+        {
+            while (getDiv(pixels, sobelDst) < k)
+            {
+                k4a_float2_t p = getP(k22, armCenterLine2[i], n, 1);
+                dis = sqrt(pow(p.xy.x - armCenterLine2[i].xy.x, 2) + pow(p.xy.y - armCenterLine2[i].xy.y, 2));
+                pixels.push(p);
+                segPixels.push_back(p);
+                pixels.pop();
+                n += 0.2;
+            }
+            distance3.push(dis);
+            continue;
+        }
+        while (getDiv(pixels, sobelDst) < k+plk)
+        {
+            k4a_float2_t p = getP(k22, armCenterLine2[i], n, 1);
+            dis = sqrt(pow(p.xy.x - armCenterLine2[i].xy.x, 2) + pow(p.xy.y - armCenterLine2[i].xy.y, 2));
+            if (distance3.back() - dis > -0.1)
+            {
+
+                pixels.push(p);
+                segPixels.push_back(p);
+                pixels.pop();
+            }
+            else
+            {
+                break;
+            }
+            if (!(p.xy.y > 0 && p.xy.y < 720 && p.xy.x < 1280 && p.xy.x > 0))
+            {
+                break;
+            }
+            n += 0.2;
+        }
+        distance3.push(dis);
+        distance3.pop();
+    }
+    std::cout << "333333333333" << std::endl;
+
+
+    std::queue<float> distance4;
+    for (size_t i = 0; i < armCenterLine2.size(); i++)
+    {
+        std::queue<k4a_float2_t> pixels;
+        float n = 0;
+        for (n = 0; n < 3; n+=0.2)
+        {
+            k4a_float2_t p = getP(k22, armCenterLine2[i], n, -1);
+            pixels.push(p);
+            segPixels.push_back(p);
+        }
+        float dis = 0;
+        if (i < 5)
+        {
+            while (getDiv(pixels, sobelDst) < k)
+            {
+                k4a_float2_t p = getP(k22, armCenterLine2[i], n, -1);
+                dis = sqrt(pow(p.xy.x - armCenterLine2[i].xy.x, 2) + pow(p.xy.y - armCenterLine2[i].xy.y, 2));
+                pixels.push(p);
+                segPixels.push_back(p);
+                pixels.pop();
+                n += 0.2;
+            }
+            distance4.push(dis);
+            continue;
+        }
+        while (getDiv(pixels, sobelDst) < k+plk)
+        {
+            k4a_float2_t p = getP(k22, armCenterLine2[i], n, -1);
+            dis = sqrt(pow(p.xy.x - armCenterLine2[i].xy.x, 2) + pow(p.xy.y - armCenterLine2[i].xy.y, 2));
+            // std::cout<<"px:"<<p.xy.x<<std::endl;
+            // std::cout<<"py:"<<p.xy.y<<std::endl;            
+            // std::cout<<"x:"<<armCenterLine1[i].xy.x<<std::endl;
+            // std::cout<<"y:"<<armCenterLine1[i].xy.y<<std::endl;
+            if (distance4.back() - dis > -0.2)
+            {
+                pixels.push(p);
+                segPixels.push_back(p);
+                pixels.pop();
+                // std::cout<<"distance1:"<<distance4.back()<<std::endl;
+                // std::cout<<"distance2:"<<dis<<std::endl;
+            }
+            else
+            {
+                // std::cout<<"distance3:"<<distance4.back()<<std::endl;
+                // std::cout<<"distance4:"<<dis<<std::endl;
+                break;
+            }
+            n += 0.2;
+            // std::cout<<"i:"<<i<<std::endl;
+            // std::cout<<"n:"<<n<<std::endl;
+        }
+        distance4.push(dis);
+        distance4.pop();
+    }
+    std::cout << "4444444444" << std::endl;
+    
+    std::cout << segPixels.size() << std::endl;
+
+    // for (int i = 0; i < 720; i++)
+    // {
+    //     for (int j = 0; j < 1280; j++)
+    //     {
+    //         sobelDst.at<uint16_t>(i, j)=0;
+    //     }
+    // }
+    for (size_t i = 0; i < segPixels.size(); i++)
+    {
+        if (segPixels[i].xy.y > 0 && segPixels[i].xy.y < 720 && segPixels[i].xy.x < 1280 && segPixels[i].xy.x > 0)
+            // img.at<uint16_t>(segPixels[i].xy.y, segPixels[i].xy.x) = 255;
+            img.at<cv::Vec3b>(segPixels[i].xy.y, segPixels[i].xy.x)[2] = 255;
+    }
+    // cv::namedWindow("Result", 0);
+    // cv::imshow("Result", sobelDst);
+    cv::imwrite("Result.jpg", img);
+    // cv::waitKey(0);
+    return segPixels;
 }
 
 std::vector<k4a_float2_t> segment(cv::Mat image)
@@ -415,14 +725,16 @@ int work()
     if (K4A_RESULT_SUCCEEDED != k4a_transformation_depth_image_to_color_camera(transformation, depth_image, color_depth_image))
     {
         printf("Failed to compute transformed depth image\n");
-    }
+    }   
+
+
     cv::Mat cv_rgbImage_with_alpha=cv::Mat(color_image_height_pixels,color_image_width_pixels,CV_8UC4,
                         (void*)k4a_image_get_buffer(color_image),cv::Mat::AUTO_STEP);
     cv::Mat cvImageToProcess;
     cv::cvtColor(cv_rgbImage_with_alpha, cvImageToProcess, cv::COLOR_BGRA2BGR);
     cv::imwrite("pic.jpg",cvImageToProcess);
     // cv::Mat segmentedImg=segment(cvImageToProcess);
-    std::vector<k4a_float2_t> segedpixels=segment(cvImageToProcess);
+    // std::vector<k4a_float2_t> segedpixels=segment(cvImageToProcess);
 
     // cv::Mat cv_rgbImage_wi=cv::Mat(color_image_height_pixels,color_image_width_pixels,CV_16UC1,
     //                     (void*)k4a_image_get_buffer(color_depth_image),cv::Mat::AUTO_STEP);
@@ -562,7 +874,40 @@ int work()
         clipPixels.push_back(getP(k2, pixels[2], i, -1));
         clipPixels.push_back(getP(k2, pixels[2], i, 1));
     }
-    
+
+    cv::Mat cv_depthimage=cv::Mat(color_image_height_pixels,color_image_width_pixels,CV_16UC1,
+                        (void*)k4a_image_get_buffer(color_depth_image),cv::Mat::AUTO_STEP);
+
+    cv::Mat cv_depthMat=cv_depthimage.clone();
+    int depth=0;
+    int a=0;
+    for (int i = 0; i < color_image_height_pixels; i++)
+    {
+        for (int j = 0; j < color_image_width_pixels; j++)
+        {
+            // std::cout<<cv_depthimage.ptr<uint16_t>(i)[j]<<std::endl;
+            a=cv_depthimage.ptr<uint16_t>(i)[j];
+            if(a>depth)
+            depth=a;
+        }
+    }
+    // depth/=255;
+    // typedef cv::Vec<unsigned short,3> CV_Vec3i16;
+    // for (int i = 0; i < color_image_height_pixels; i++)
+    // {
+    //     for (int j = 0; j < color_image_width_pixels; j++)
+    //     {            
+    //         float p=cv_depthimage.ptr<uint16_t>(i)[j];
+    //         p/=depth;
+    //         // p=pow(p,0.5);
+    //         p*=255;
+    //         cv_depthimage.ptr<uint16_t>(i)[j]=p;
+    //     }
+    // }
+    // std::cout<<"depth:"<<depth<<std::endl;
+    // cv::imwrite("depth.jpg",cv_depthimage);
+    // cv::imshow("depth",cv_depthimage);
+    // cv::waitKey(0);
 
     std::ofstream infile3("featureXYZ.txt");
     assert(infile3.is_open());
@@ -583,6 +928,9 @@ int work()
         k4a_calibration_2d_to_3d(&calibration, &clipPixels[i], depth, K4A_CALIBRATION_TYPE_COLOR, K4A_CALIBRATION_TYPE_COLOR, &ppp, &valid);
         infile4 << ppp.xyz.x << " " << ppp.xyz.y << " " << ppp.xyz.z << std::endl;
     }
+
+    std::vector<k4a_float2_t> segedpixels=segmentPixels(pixels,cv_depthMat,5,cvImageToProcess);
+    // std::vector<k4a_float2_t> segedpixels=segmentPixels(pixels,cvImageToProcess,80,cvImageToProcess);
 
     std::ofstream infile5("segedArm.txt");
     assert(infile5.is_open());

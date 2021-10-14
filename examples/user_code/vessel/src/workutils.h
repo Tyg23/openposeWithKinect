@@ -148,23 +148,26 @@ void workutils::LocateTrajectoryOnSurface(int isUpperArm)
     std::string fileNamesrc;
     std::string fileNametar;
     std::string fileNameRes;
+    std::string fileNameVessel;
     if(isUpperArm==1)
     {
         fileNamesrc="Uppersource.txt";
         fileNametar="Uppertarget.txt";
         fileNameRes="UpperResult.txt";
+        fileNameVessel="UpperVessel.xyz";
     }
     else
     {
         fileNamesrc="Lowersource.txt";
         fileNametar="Lowertarget.txt";
         fileNameRes="LowerResult.txt";
+        fileNameVessel="LowerVessel.xyz";
     }
     src_points=loadPointsfromTxt(fileNamesrc);
     KDtree* srctree=new KDtree(src_points);
 
     MatrixXX vel_points;
-    vel_points=loadPointsfromTxt("vessel.txt");
+    vel_points=loadPointsfromTxt(fileNameVessel);
     float *p=new float[3];
     std::vector<int> srcpoints;
         for (int i = 0; i < vel_points.cols(); i++)
