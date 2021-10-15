@@ -195,30 +195,92 @@ float getDiv(std::queue<k4a_float2_t> pixels,cv::Mat img)
     return div;
 }
 
-std::vector<k4a_float2_t> segmentPixels(std::vector<k4a_float2_t> featurePixels,cv::Mat src,int k,cv::Mat img)
+std::vector<k4a_float2_t> findPixels(std::vector<k4a_float2_t> armCenterLine,float Slope, int threshold,cv::Mat src,int d)
+{
+    std::vector<k4a_float2_t> segPixels;
+    int plk=2;
+    std::queue<float> distance;
+    for (size_t i = 0; i < armCenterLine.size(); i++)
+    {
+        std::queue<k4a_float2_t> pixels;
+        float n = 0;
+        //预存一些参照像素
+        for (n = 0; n < 2; n+=0.2)
+        {
+            k4a_float2_t p = getP(Slope, armCenterLine[i], n, d);
+            pixels.push(p);
+            segPixels.push_back(p);
+        }
+        float dis = 0;
+        //预存一些像素长度
+        if (i < 2)
+        {
+            while (getDiv(pixels, src) < threshold)
+            {
+                // std::cout<<"kkkkkkkkk"<<std::endl;
+                k4a_float2_t p = getP(Slope, armCenterLine[i], n, d);
+                dis = sqrt(pow(p.xy.x - armCenterLine[i].xy.x, 2) + pow(p.xy.y - armCenterLine[i].xy.y, 2));
+                pixels.push(p);
+                segPixels.push_back(p);
+                pixels.pop();
+                n += 0.2;
+            }
+            distance.push(dis);
+            continue;
+        }
+        //分割图像
+        while (getDiv(pixels, src) < threshold+plk)
+        {
+            k4a_float2_t p = getP(Slope, armCenterLine[i], n, d);
+            dis = sqrt(pow(p.xy.x - armCenterLine[i].xy.x, 2) + pow(p.xy.y - armCenterLine[i].xy.y, 2));
+            //如果长度过长则剪断
+            if (distance.back() - dis > -0.1)
+            {
+                pixels.push(p);
+                segPixels.push_back(p);
+                pixels.pop();
+            }
+            else
+            {
+                break;
+            }
+            if (!(p.xy.y > 0 && p.xy.y < 720 && p.xy.x < 1280 && p.xy.x > 0))
+            {
+                break;
+            }
+            n += 0.2;
+        }
+        distance.push(dis);
+        distance.pop();
+    }
+    return segPixels;
+}
+
+std::vector<k4a_float2_t> segmentPixels(std::vector<k4a_float2_t> featurePixels,cv::Mat src,int threshold,cv::Mat img)
 {
     cv::Mat grad_x, grad_y;
     cv::Mat abs_grad_x, abs_grad_y, sobelDst;
 
     //求 X方向梯度
-    cv::Sobel(src, grad_x, CV_16S, 1, 0, 3, 1, 1, cv::BORDER_DEFAULT);
-    cv::convertScaleAbs(grad_x, abs_grad_x);
+    // cv::Sobel(src, grad_x, CV_16S, 1, 0, 3, 1, 1, cv::BORDER_DEFAULT);
+    // cv::convertScaleAbs(grad_x, abs_grad_x);
     // namedWindow("X方向Sobel", 0);
     // imshow("X方向Sobel", abs_grad_x);
 
     //求Y方向梯度
-    cv::Sobel(src, grad_y, CV_16S, 0, 1, 3, 1, 1, cv::BORDER_DEFAULT);
-    cv::convertScaleAbs(grad_y, abs_grad_y);
+    // cv::Sobel(src, grad_y, CV_16S, 0, 1, 3, 1, 1, cv::BORDER_DEFAULT);
+    // cv::convertScaleAbs(grad_y, abs_grad_y);
     // namedWindow("Y方向Sobel", 0);
     // imshow("Y方向Sobel", abs_grad_y);
 
     //合并梯度(近似)
-    cv::addWeighted(abs_grad_x, 0.5, abs_grad_y, 0.5, 0, sobelDst);
+    // cv::addWeighted(abs_grad_x, 0.5, abs_grad_y, 0.5, 0, sobelDst);
     // namedWindow("整体方向Sobel", 0);
     // imshow("整体方向Sobel", sobelDst);
     sobelDst=src.clone();
 
     //根据像素值提取边缘
+    //提取连线的像素
     std::vector<k4a_float2_t> armCenterLine1;
     std::vector<k4a_float2_t> armCenterLine2;
     float k1 = getSlope(featurePixels[0], featurePixels[1]);
@@ -232,242 +294,23 @@ std::vector<k4a_float2_t> segmentPixels(std::vector<k4a_float2_t> featurePixels,
         armCenterLine2.push_back(getP(k2, featurePixels[2], i / 4, 1));
     }
 
+    //获取垂线的斜率
     float k11 = -1 / k1;
     float k22 = -1 / k2;
-    std::vector<k4a_float2_t> segPixels;
-
-    //开始分割
-    int plk=2;
-    std::queue<float> distance1;
-    for (size_t i = 0; i < armCenterLine1.size(); i++)
-    {
-        std::queue<k4a_float2_t> pixels;
-        float n = 0;
-        //预存一些参照像素
-        for (n = 0; n < 2; n+=0.2)
-        {
-            k4a_float2_t p = getP(k11, armCenterLine1[i], n, 1);
-            pixels.push(p);
-            segPixels.push_back(p);
-        }
-        float dis = 0;
-        //预存一些像素长度
-        if (i < 2)
-        {
-            while (getDiv(pixels, sobelDst) < k)
-            {
-                // std::cout<<"kkkkkkkkk"<<std::endl;
-                k4a_float2_t p = getP(k11, armCenterLine1[i], n, 1);
-                dis = sqrt(pow(p.xy.x - armCenterLine1[i].xy.x, 2) + pow(p.xy.y - armCenterLine1[i].xy.y, 2));
-                pixels.push(p);
-                segPixels.push_back(p);
-                pixels.pop();
-                n += 0.2;
-            }
-            distance1.push(dis);
-            continue;
-        }
-        //分割图像
-        while (getDiv(pixels, sobelDst) < k+plk)
-        {
-            k4a_float2_t p = getP(k11, armCenterLine1[i], n, 1);
-            dis = sqrt(pow(p.xy.x - armCenterLine1[i].xy.x, 2) + pow(p.xy.y - armCenterLine1[i].xy.y, 2));
-            //如果长度过长则剪断
-            if (distance1.back() - dis > -0.1)
-            {
-                pixels.push(p);
-                segPixels.push_back(p);
-                pixels.pop();
-            }
-            else
-            {
-                break;
-            }
-            if (!(p.xy.y > 0 && p.xy.y < 720 && p.xy.x < 1280 && p.xy.x > 0))
-            {
-                break;
-            }
-            n += 0.2;
-        }
-        distance1.push(dis);
-        distance1.pop();
-    }
-    std::cout << "11111111111" << std::endl;
+    std::vector<k4a_float2_t> segPixels;//分割后的像素
 
 
-    std::queue<float> distance2;
-    for (size_t i = 0; i < armCenterLine1.size(); i++)
-    {
-        std::queue<k4a_float2_t> pixels;
-        float n = 0;
-        for (n = 0; n < 2; n+=0.2)
-        {
-            k4a_float2_t p = getP(k11, armCenterLine1[i], n, -1);
-            pixels.push(p);
-            segPixels.push_back(p);
-        }
+    std::vector<k4a_float2_t> segPixels1=findPixels(armCenterLine1,k11,threshold+10,sobelDst,1);
+    std::vector<k4a_float2_t> segPixels2=findPixels(armCenterLine1,k11,threshold+10,sobelDst,-1);
+    std::vector<k4a_float2_t> segPixels3=findPixels(armCenterLine2,k22,threshold,sobelDst,1);
+    std::vector<k4a_float2_t> segPixels4=findPixels(armCenterLine2,k22,threshold,sobelDst,-1);
 
-        float dis = 0;
-        if (i < 2)
-        {
-            while (getDiv(pixels, sobelDst) < k)
-            {
-                k4a_float2_t p = getP(k11, armCenterLine1[i], n, -1);
-                dis = sqrt(pow(p.xy.x - armCenterLine1[i].xy.x, 2) + pow(p.xy.y - armCenterLine1[i].xy.y, 2));
-                pixels.push(p);
-                segPixels.push_back(p);
-                pixels.pop();
-                n += 0.2;
-            }
-            distance2.push(dis);
-            continue;
-        }
-        while (getDiv(pixels, sobelDst) < k+plk)
-        {
-            k4a_float2_t p = getP(k11, armCenterLine1[i], n, -1);
-            dis = sqrt(pow(p.xy.x - armCenterLine1[i].xy.x, 2) + pow(p.xy.y - armCenterLine1[i].xy.y, 2));
-            if (distance2.back() - dis > -0.1)
-            {
-                pixels.push(p);
-                segPixels.push_back(p);
-                pixels.pop();
-            }
-            else
-            {
-                break;
-            }
-            if (!(p.xy.y > 0 && p.xy.y < 720 && p.xy.x < 1280 && p.xy.x > 0))
-            {
-                break;
-            }
-            n += 0.2;
-        }
-        distance2.push(dis);
-        distance2.pop();
-    }
-    std::cout << "2222222222" << std::endl;
-
-
-
-    std::queue<float> distance3;
-    for (size_t i = 0; i < armCenterLine2.size(); i++)
-    {
-        std::queue<k4a_float2_t> pixels;
-        float n = 0;
-        for (n = 0; n < 2; n+=0.2)
-        {
-            k4a_float2_t p = getP(k22, armCenterLine2[i], n, 1);
-            pixels.push(p);
-            segPixels.push_back(p);
-        }
-        float dis = 0;
-        if (i < 3)
-        {
-            while (getDiv(pixels, sobelDst) < k)
-            {
-                k4a_float2_t p = getP(k22, armCenterLine2[i], n, 1);
-                dis = sqrt(pow(p.xy.x - armCenterLine2[i].xy.x, 2) + pow(p.xy.y - armCenterLine2[i].xy.y, 2));
-                pixels.push(p);
-                segPixels.push_back(p);
-                pixels.pop();
-                n += 0.2;
-            }
-            distance3.push(dis);
-            continue;
-        }
-        while (getDiv(pixels, sobelDst) < k+plk)
-        {
-            k4a_float2_t p = getP(k22, armCenterLine2[i], n, 1);
-            dis = sqrt(pow(p.xy.x - armCenterLine2[i].xy.x, 2) + pow(p.xy.y - armCenterLine2[i].xy.y, 2));
-            if (distance3.back() - dis > -0.1)
-            {
-
-                pixels.push(p);
-                segPixels.push_back(p);
-                pixels.pop();
-            }
-            else
-            {
-                break;
-            }
-            if (!(p.xy.y > 0 && p.xy.y < 720 && p.xy.x < 1280 && p.xy.x > 0))
-            {
-                break;
-            }
-            n += 0.2;
-        }
-        distance3.push(dis);
-        distance3.pop();
-    }
-    std::cout << "333333333333" << std::endl;
-
-
-    std::queue<float> distance4;
-    for (size_t i = 0; i < armCenterLine2.size(); i++)
-    {
-        std::queue<k4a_float2_t> pixels;
-        float n = 0;
-        for (n = 0; n < 3; n+=0.2)
-        {
-            k4a_float2_t p = getP(k22, armCenterLine2[i], n, -1);
-            pixels.push(p);
-            segPixels.push_back(p);
-        }
-        float dis = 0;
-        if (i < 5)
-        {
-            while (getDiv(pixels, sobelDst) < k)
-            {
-                k4a_float2_t p = getP(k22, armCenterLine2[i], n, -1);
-                dis = sqrt(pow(p.xy.x - armCenterLine2[i].xy.x, 2) + pow(p.xy.y - armCenterLine2[i].xy.y, 2));
-                pixels.push(p);
-                segPixels.push_back(p);
-                pixels.pop();
-                n += 0.2;
-            }
-            distance4.push(dis);
-            continue;
-        }
-        while (getDiv(pixels, sobelDst) < k+plk)
-        {
-            k4a_float2_t p = getP(k22, armCenterLine2[i], n, -1);
-            dis = sqrt(pow(p.xy.x - armCenterLine2[i].xy.x, 2) + pow(p.xy.y - armCenterLine2[i].xy.y, 2));
-            // std::cout<<"px:"<<p.xy.x<<std::endl;
-            // std::cout<<"py:"<<p.xy.y<<std::endl;            
-            // std::cout<<"x:"<<armCenterLine1[i].xy.x<<std::endl;
-            // std::cout<<"y:"<<armCenterLine1[i].xy.y<<std::endl;
-            if (distance4.back() - dis > -0.2)
-            {
-                pixels.push(p);
-                segPixels.push_back(p);
-                pixels.pop();
-                // std::cout<<"distance1:"<<distance4.back()<<std::endl;
-                // std::cout<<"distance2:"<<dis<<std::endl;
-            }
-            else
-            {
-                // std::cout<<"distance3:"<<distance4.back()<<std::endl;
-                // std::cout<<"distance4:"<<dis<<std::endl;
-                break;
-            }
-            n += 0.2;
-            // std::cout<<"i:"<<i<<std::endl;
-            // std::cout<<"n:"<<n<<std::endl;
-        }
-        distance4.push(dis);
-        distance4.pop();
-    }
-    std::cout << "4444444444" << std::endl;
+    segPixels.insert(segPixels.end(),segPixels1.begin(),segPixels1.end());
+    segPixels.insert(segPixels.end(),segPixels2.begin(),segPixels2.end());
+    segPixels.insert(segPixels.end(),segPixels3.begin(),segPixels3.end());
+    segPixels.insert(segPixels.end(),segPixels4.begin(),segPixels4.end());    
     
     std::cout << segPixels.size() << std::endl;
-
-    // for (int i = 0; i < 720; i++)
-    // {
-    //     for (int j = 0; j < 1280; j++)
-    //     {
-    //         sobelDst.at<uint16_t>(i, j)=0;
-    //     }
-    // }
     for (size_t i = 0; i < segPixels.size(); i++)
     {
         if (segPixels[i].xy.y > 0 && segPixels[i].xy.y < 720 && segPixels[i].xy.x < 1280 && segPixels[i].xy.x > 0)
@@ -688,6 +531,7 @@ int work()
     k4a_image_t depth_image=NULL;
     k4a_image_t color_depth_image=NULL;
 
+    //获取各个类型的图像数据
     color_image=k4a_capture_get_color_image(capture);
     depth_image=k4a_capture_get_depth_image(capture);
     int color_image_width_pixels = k4a_image_get_width_pixels(color_image);
@@ -732,7 +576,7 @@ int work()
                         (void*)k4a_image_get_buffer(color_image),cv::Mat::AUTO_STEP);
     cv::Mat cvImageToProcess;
     cv::cvtColor(cv_rgbImage_with_alpha, cvImageToProcess, cv::COLOR_BGRA2BGR);
-    cv::imwrite("pic.jpg",cvImageToProcess);
+    cv::imwrite("pic.jpg",cvImageToProcess);//存储彩色图像
     // cv::Mat segmentedImg=segment(cvImageToProcess);
     // std::vector<k4a_float2_t> segedpixels=segment(cvImageToProcess);
 
@@ -740,6 +584,7 @@ int work()
     //                     (void*)k4a_image_get_buffer(color_depth_image),cv::Mat::AUTO_STEP);
     // cv::imshow("1",cv_rgbImage_wi);cv::waitKey(0);
     
+    //将深度图像变换到彩色图像空间中
     if (K4A_RESULT_SUCCEEDED != k4a_transformation_depth_image_to_point_cloud(transformation,
                                                                               color_depth_image,
                                                                               K4A_CALIBRATION_TYPE_COLOR,
@@ -756,13 +601,9 @@ int work()
 	};
 
 	std::vector<color_point_t> points;
-
-	//int width = k4a_image_get_width_pixels(point_cloud_image);
-	//int height = k4a_image_get_height_pixels(transformed_color_image);
-
 	int16_t *point_cloud_image_data = (int16_t *)(void *)k4a_image_get_buffer(point_cloud_image);
 	uint8_t *color_image_data = k4a_image_get_buffer(color_image);
-
+    //存储点云
 	for (int i = 0; i < color_image_width_pixels * color_image_height_pixels; i++)
 	{
 		color_point_t point;
@@ -787,49 +628,25 @@ int work()
 		points.push_back(point);
 	}
     
+    //写入不带颜色的点云
     std::ofstream infile1("xyz.txt");
 	assert(infile1.is_open());
-
     for (int i = 0; i < points.size(); i++)
     {
-        // int a = points[i].xyz[0];
-        // int b = points[i].xyz[1];
-        // int c = points[i].xyz[2];
-        // bool xx = a > -400 && a < 400;
-        // bool yy = b > -300 && b < 300;
-        // bool zz = c > 200 && c < 700;
-
-        // if (xx && yy && zz)
-        // {
         infile1 << points[i].xyz[0];
         infile1 << " ";
         infile1 << points[i].xyz[1];
         infile1 << " ";
-        infile1 << points[i].xyz[2];
-        // infile << " ";
-        // infile << (float)points[i].rgb[2];
-        // infile << " ";
-        // infile << (float)points[i].rgb[1];
-        // infile << " ";
-        // infile << (float)points[i].rgb[0];
+        infile1 << points[i].xyz[2];        
         infile1 << std::endl;
-        // }
     }
 
     std::ofstream infile2("xyzrgb.txt");
 	assert(infile2.is_open());
 
+    //写入带颜色的点云
     for (int i = 0; i < points.size(); i++)
     {
-        // int a = points[i].xyz[0];
-        // int b = points[i].xyz[1];
-        // int c = points[i].xyz[2];
-        // bool xx = a > -400 && a < 400;
-        // bool yy = b > -300 && b < 300;
-        // bool zz = c > 200 && c < 700;
-
-        // if (xx && yy && zz)
-        // {
         infile2 << points[i].xyz[0];
         infile2 << " ";
         infile2 << points[i].xyz[1];
@@ -842,17 +659,20 @@ int work()
         infile2 << " ";
         infile2 << (float)points[i].rgb[0];
         infile2 << std::endl;
-        // }
     }
     
     // cv::imshow("1",cvImageToProcess);cv::waitKey(0);
-    tutorialApiCpp(cvImageToProcess);
+    std::cout<<"-----开始检测人体姿态------"<<std::endl;
+    tutorialApiCpp(cvImageToProcess);//检测人体姿态
+
     k4a_float3_t ppp;
     int valid;
     int16_t *depth_image_data = (int16_t *)(void *)k4a_image_get_buffer(color_depth_image);
 
-    float k1=-1/getSlope(pixels[0],pixels[1]);
-    float k2=-1/getSlope(pixels[1],pixels[2]);
+
+    float k1=-1/getSlope(pixels[0],pixels[1]);//大臂连线的垂线斜率
+    float k2=-1/getSlope(pixels[1],pixels[2]);//小臂连线的垂线斜率
+    //存储垂线上的像素点
     std::vector<k4a_float2_t> clipPixels;
     for (size_t i = 0; i < 16; i++)
     {
@@ -875,10 +695,16 @@ int work()
         clipPixels.push_back(getP(k2, pixels[2], i, 1));
     }
 
+    //将深度图存入cv::mat,用以分割
     cv::Mat cv_depthimage=cv::Mat(color_image_height_pixels,color_image_width_pixels,CV_16UC1,
                         (void*)k4a_image_get_buffer(color_depth_image),cv::Mat::AUTO_STEP);
 
-    cv::Mat cv_depthMat=cv_depthimage.clone();
+
+
+    cv::Mat cv_depthMat1=cv_depthimage.clone();//用于分割
+    cv::Mat cv_depthMat2=cv_depthimage.clone();//用于存储
+    // cv::Mat cv_depthMat3=cv::Mat::zeros(color_image_height_pixels,color_image_width_pixels,CV_32FC1);//用于
+    //查找最大深度
     int depth=0;
     int a=0;
     for (int i = 0; i < color_image_height_pixels; i++)
@@ -886,29 +712,32 @@ int work()
         for (int j = 0; j < color_image_width_pixels; j++)
         {
             // std::cout<<cv_depthimage.ptr<uint16_t>(i)[j]<<std::endl;
-            a=cv_depthimage.ptr<uint16_t>(i)[j];
+            // cv_depthMat3.ptr<float>(i)[j]=cv_depthMat2.ptr<uint16_t>(i)[j];
+            a=cv_depthMat2.ptr<uint16_t>(i)[j];
             if(a>depth)
             depth=a;
         }
     }
     // depth/=255;
-    // typedef cv::Vec<unsigned short,3> CV_Vec3i16;
-    // for (int i = 0; i < color_image_height_pixels; i++)
-    // {
-    //     for (int j = 0; j < color_image_width_pixels; j++)
-    //     {            
-    //         float p=cv_depthimage.ptr<uint16_t>(i)[j];
-    //         p/=depth;
-    //         // p=pow(p,0.5);
-    //         p*=255;
-    //         cv_depthimage.ptr<uint16_t>(i)[j]=p;
-    //     }
-    // }
+    for (int i = 0; i < color_image_height_pixels; i++)
+    {
+        for (int j = 0; j < color_image_width_pixels; j++)
+        {            
+            float p=cv_depthMat2.ptr<uint16_t>(i)[j];
+            // p/=depth;
+            // p=pow(p,2);
+            p*=4;
+            // p*=255;
+            cv_depthMat2.ptr<uint16_t>(i)[j]=p;
+            // std::cout<<cv_depthMat3.ptr<float>(i)[j]<<std::endl;
+        }
+    }
     // std::cout<<"depth:"<<depth<<std::endl;
-    // cv::imwrite("depth.jpg",cv_depthimage);
+    // cv::imwrite("depth.jpg",cv_depthMat2);
     // cv::imshow("depth",cv_depthimage);
     // cv::waitKey(0);
 
+    //存储关节特征的三维点
     std::ofstream infile3("featureXYZ.txt");
     assert(infile3.is_open());
     for (size_t i = 0; i < 3; i++)
@@ -920,6 +749,7 @@ int work()
         infile3 << ppp.xyz.x << " " << ppp.xyz.y << " " << ppp.xyz.z << std::endl;
     }
 
+    //存储垂线的三维点
     std::ofstream infile4("clipXYZ.txt");
     assert(infile4.is_open());
     for (size_t i = 0; i < clipPixels.size(); i++)
@@ -929,9 +759,11 @@ int work()
         infile4 << ppp.xyz.x << " " << ppp.xyz.y << " " << ppp.xyz.z << std::endl;
     }
 
-    std::vector<k4a_float2_t> segedpixels=segmentPixels(pixels,cv_depthMat,5,cvImageToProcess);
+    //从深度图里分割手臂
+    std::vector<k4a_float2_t> segedpixels=segmentPixels(pixels,cv_depthMat2,20,cvImageToProcess);
     // std::vector<k4a_float2_t> segedpixels=segmentPixels(pixels,cvImageToProcess,80,cvImageToProcess);
 
+    //存储手臂的点云
     std::ofstream infile5("segedArm.txt");
     assert(infile5.is_open());
     for (size_t i = 0; i < segedpixels.size(); i++)
@@ -940,7 +772,10 @@ int work()
         k4a_calibration_2d_to_3d(&calibration, &segedpixels[i], depth, K4A_CALIBRATION_TYPE_COLOR, K4A_CALIBRATION_TYPE_COLOR, &ppp, &valid);
         infile5 << ppp.xyz.x << " " << ppp.xyz.y << " " << ppp.xyz.z << std::endl;
     }
+
+    //给手臂分段
     clip();
+
     // Running tutorialApiCpp
     // return tutorialApiCpp();
     return 0;
