@@ -4,7 +4,27 @@
 #include <pcl/common/transforms.h>
 #include <pcl/io/ply_io.h>
 #include <pcl/visualization/cloud_viewer.h>
+#include <pcl/io/obj_io.h>
 #include <json/reader.h>
+
+//vtk
+#include <vtkPolyData.h>
+#include <vtkSmartPointer.h>
+#include <vtkActor.h>
+#include <vtkRenderWindow.h>
+#include <vtkRenderer.h>
+#include <vtkRenderWindowInteractor.h>
+#include <vtkProperty.h>
+#include <vtkParametricSpline.h>
+#include <vtkParametricFunctionSource.h>
+#include <vtkSphereSource.h>
+#include <vtkGlyph3DMapper.h>
+#include <fstream>
+#include <iostream>
+#include <vtkKochanekSpline.h>
+#include <vtkPolyDataMapper.h>
+#include <vtkBuffer.h>
+#include <vtkPolyDataWriter.h>
 
 class workutils
 {
@@ -22,6 +42,8 @@ public:
     static Eigen::Matrix4f initialAlign(std::string PLYfilename,int isUpperArm);
     static pcl::PointCloud<pcl::PointXYZ>::Ptr getCloudFromText(std::string filename);
     static pcl::PointCloud<pcl::PointXYZ>::Ptr getCloudFromPLY(std::string filename);
+    static bool fitSpline();
+    static void transformSurface();
 };
 
 pcl::PointCloud<pcl::PointXYZ>::Ptr workutils::getCloudFromText(std::string filename)
@@ -402,6 +424,131 @@ Eigen::Matrix4f workutils::initialAlign(std::string PLYfilename,int isUpperArm)
 	// {
 	// 	viewer.spinOnce(100);
 	// }
+}
+
+bool workutils::fitSpline()
+{
+    vtkSmartPointer<vtkKochanekSpline> xSpline=vtkSmartPointer<vtkKochanekSpline>::New();
+    vtkSmartPointer<vtkKochanekSpline> ySpline=vtkSmartPointer<vtkKochanekSpline>::New();
+    vtkSmartPointer<vtkKochanekSpline> zSpline=vtkSmartPointer<vtkKochanekSpline>::New();
+
+    vtkSmartPointer<vtkPoints> points =
+        vtkSmartPointer<vtkPoints>::New();
+
+    std::fstream file1("LowerResult.txt");
+    std::string line;
+    std::stringstream ss;
+    while (getline(file1, line))
+    {
+        ss.clear();
+        ss.str(line);
+        double p[3] = {0, 0, 0};
+        ss >> p[0] >> p[1] >> p[2];
+        points->InsertNextPoint(p);
+    }    
+    std::fstream file2("UpperResult.txt");
+    while (getline(file2, line))
+    {
+        ss.clear();
+        ss.str(line);
+        double p[3] = {0, 0, 0};
+        ss >> p[0] >> p[1] >> p[2];
+        points->InsertNextPoint(p);
+    }
+
+    // points->InsertNextPoint(p0);
+    // points->InsertNextPoint(p1);
+    // points->InsertNextPoint(p2);
+    // points->InsertNextPoint(p3);
+
+    vtkSmartPointer<vtkParametricSpline> spline =
+        vtkSmartPointer<vtkParametricSpline>::New();
+    spline->SetXSpline(xSpline);
+    spline->SetYSpline(ySpline);
+    spline->SetZSpline(zSpline);
+    spline->SetPoints(points);
+    spline->ClosedOff();
+
+    vtkSmartPointer<vtkParametricFunctionSource> functionSource =
+        vtkSmartPointer<vtkParametricFunctionSource>::New();
+    functionSource->SetParametricFunction(spline);
+    functionSource->SetUResolution(30);
+    functionSource->SetVResolution(10000);
+    functionSource->SetWResolution(10000);
+    functionSource->Update();
+
+    //保存数据
+	auto Writer = vtkSmartPointer<vtkPolyDataWriter>::New();
+	Writer->SetFileName("1.vtk");
+	Writer->SetInputData(functionSource->GetOutput());//vtkPolyData
+	Writer->Write();
+
+    // vtkSmartPointer<vtkPolyDataMapper> splineMapper =vtkSmartPointer<vtkPolyDataMapper>::New();
+    // splineMapper->SetInputConnection(functionSource->GetOutputPort());
+
+    // vtkSmartPointer<vtkActor> splineActor =
+    //     vtkSmartPointer<vtkActor>::New();
+    // splineActor->SetMapper(splineMapper);
+
+    // vtkSmartPointer<vtkSphereSource> sphereSource =
+    //     vtkSmartPointer<vtkSphereSource>::New();
+    // sphereSource->SetPhiResolution(21);
+    // sphereSource->SetThetaResolution(21);
+    // sphereSource->SetRadius(.1);
+
+    // vtkSmartPointer<vtkPolyData> splinePointsData =
+    //     vtkSmartPointer<vtkPolyData>::New();
+    // splinePointsData->SetPoints(points);
+
+    // vtkSmartPointer<vtkGlyph3DMapper> splinePointsMapper =
+    //     vtkSmartPointer<vtkGlyph3DMapper>::New();
+    // splinePointsMapper->SetInputData(splinePointsData);
+    // splinePointsMapper->SetSourceConnection(sphereSource->GetOutputPort());
+
+    // vtkSmartPointer<vtkActor> pointsActor =
+    //     vtkSmartPointer<vtkActor>::New();
+    // pointsActor->SetMapper(splinePointsMapper);
+    // pointsActor->GetProperty()->SetColor(1, 0, 0);
+
+    // vtkSmartPointer<vtkRenderer> renderer =
+    //     vtkSmartPointer<vtkRenderer>::New();
+    // vtkSmartPointer<vtkRenderWindow> renderWindow =
+    //     vtkSmartPointer<vtkRenderWindow>::New();
+    // renderWindow->SetSize(600, 600);
+    // renderWindow->AddRenderer(renderer);
+    // vtkSmartPointer<vtkRenderWindowInteractor> renderWindowInteractor =
+    //     vtkSmartPointer<vtkRenderWindowInteractor>::New();
+    // renderWindowInteractor->SetRenderWindow(renderWindow);
+
+    // renderer->AddActor(splineActor);
+    // renderer->AddActor(pointsActor);
+
+    // renderWindow->Render();
+    // renderWindowInteractor->Start();
+
+    std::fstream vtkfile("1.vtk");
+    for (size_t i = 0; i < 5; i++)
+    {
+        getline(vtkfile,line);
+    }
+    std::ofstream txtfile("result.txt");
+    std::vector<float> Vpoints;
+    for (size_t i = 0; i < 11; i++)
+    {
+        getline(vtkfile,line);
+        ss.clear();
+        ss.str(line);
+        float p=0;
+        while (ss>>p)
+        {
+            Vpoints.push_back(p);
+        }
+    }
+    for (size_t i = 0; i < Vpoints.size(); i+=3)
+    {
+        txtfile<<Vpoints[i]<<" "<<Vpoints[i+1]<<" "<<Vpoints[i+2]<<std::endl;
+    } 
+    return true;
 }
 
 workutils::workutils(/* args */)

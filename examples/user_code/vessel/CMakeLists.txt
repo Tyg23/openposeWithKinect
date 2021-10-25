@@ -68,6 +68,9 @@ message(STATUS "    include path: ${TORCH_INCLUDE_DIRS}")
 message(STATUS "    torch lib : ${TORCH_LIBRARIES} ")
 include_directories(${TORCH_INCLUDE_DIRS})
 
+find_package(VTK REQUIRED)
+include( ${VTK_USE_FILE} )
+
 set(USER_CODE_FILES
      ./src/main.cpp)
 #get_filename_component(SOURCE_NAME ${USER_CODE_FILE} NAME_WE)
@@ -82,6 +85,7 @@ target_link_libraries(${PROJECT_NAME}
     k4a::k4a
     ${TORCH_LIBRARIES} 
     ${PCL_LIBRARIES}   
+    ${VTK_LIBRARIES}
     ${examples_3rdparty_libraries})
 
 

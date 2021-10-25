@@ -4,6 +4,12 @@
 #include <tools/io_mesh.h>
 #include <detectBody.h>
 #include <workutils.h>
+#include <vtkOBJReader.h>
+#include <vtkTransformFilter.h>
+#include <vtkTransform.h>
+#include <vtkSTLWriter.h>
+#include <vtkOBJExporter.h>
+#include <vtkMatrix4x4.h>
 
 void match(std::string src, std::string tar,std::string matchName,int isUpperArm)
 {
@@ -106,6 +112,7 @@ void match(std::string src, std::string tar,std::string matchName,int isUpperArm
         file2<<point(0,0)<<" "<<point(1,0)<<" "<<point(2,0)<<std::endl;
     }
 
+
     std::cout << "Registration done!\nrigid_init time : "
               << time.elapsed_time(time1, time2) << " s \trigid-reg run time = " << time.elapsed_time(time2, time3)
               << " s \nnon-rigid init time = "
@@ -115,6 +122,34 @@ void match(std::string src, std::string tar,std::string matchName,int isUpperArm
     write_data(out_file.c_str(), src_mesh, scale);
     std::cout << "write result to " << out_file << std::endl;
     workutils::LocateTrajectoryOnSurface(isUpperArm);
+
+    vtkSmartPointer<vtkOBJReader> reader=vtkSmartPointer<vtkOBJReader>::New();
+    reader->SetFileName(out_file.c_str());
+    reader->Update();
+
+    vtkSmartPointer<vtkPolyData> polydata=vtkSmartPointer<vtkPolyData>::New();
+    polydata->DeepCopy(reader->GetOutput());
+    vtkSmartPointer<vtkMatrix4x4> mm=vtkSmartPointer<vtkMatrix4x4>::New();
+    for (size_t i = 0; i < 4; i++)
+    {
+        for (size_t j = 0; j < 4; j++)
+        {
+            mm->SetElement(i,j,transform(i,j));
+        }        
+    }    
+    vtkSmartPointer<vtkTransform> vtktransform=vtkSmartPointer<vtkTransform>::New();
+    mm->Invert();
+    vtktransform->SetMatrix(mm);
+    vtkSmartPointer<vtkTransformFilter> transformfilter=vtkSmartPointer<vtkTransformFilter>::New();
+    transformfilter->SetInputData(polydata);
+    transformfilter->SetTransform(vtktransform);
+    transformfilter->Update();
+    vtkSmartPointer<vtkSTLWriter> exporter=vtkSmartPointer<vtkSTLWriter>::New();
+    std::string name=outpath +matchName.c_str()+"res.stl";
+    exporter->SetFileName(name.c_str());
+    exporter->SetInputData(transformfilter->GetOutput());
+    exporter->Update();
+
     delete reg;
 }
 
@@ -123,5 +158,6 @@ int main()
     work();
     match("AtlasUpper.obj","segedArm1.ply","Upper",1);
     match("AtlasLower.obj","segedArm2.ply","Lower",0);
+    workutils::fitSpline();
     return 0;
 }

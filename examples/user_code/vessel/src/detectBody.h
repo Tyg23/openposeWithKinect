@@ -300,8 +300,8 @@ std::vector<k4a_float2_t> segmentPixels(std::vector<k4a_float2_t> featurePixels,
     std::vector<k4a_float2_t> segPixels;//分割后的像素
 
 
-    std::vector<k4a_float2_t> segPixels1=findPixels(armCenterLine1,k11,threshold+10,sobelDst,1);
-    std::vector<k4a_float2_t> segPixels2=findPixels(armCenterLine1,k11,threshold+10,sobelDst,-1);
+    std::vector<k4a_float2_t> segPixels1=findPixels(armCenterLine1,k11,threshold+15,sobelDst,1);
+    std::vector<k4a_float2_t> segPixels2=findPixels(armCenterLine1,k11,threshold+15,sobelDst,-1);
     std::vector<k4a_float2_t> segPixels3=findPixels(armCenterLine2,k22,threshold,sobelDst,1);
     std::vector<k4a_float2_t> segPixels4=findPixels(armCenterLine2,k22,threshold,sobelDst,-1);
 
