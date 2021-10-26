@@ -11,6 +11,16 @@
 #include <vtkOBJExporter.h>
 #include <vtkMatrix4x4.h>
 
+#include <pcl/point_types.h>
+#include <pcl/io/pcd_io.h>
+#include <pcl/kdtree/kdtree_flann.h>
+#include <pcl/visualization/pcl_visualizer.h>
+#include <boost/thread/thread.hpp>
+#include <pcl/filters/voxel_grid.h>
+#include <pcl/features/normal_3d_omp.h>
+#include <fstream>
+#include <Eigen/Eigen>
+
 void match(std::string src, std::string tar,std::string matchName,int isUpperArm)
 {
     Mesh src_mesh;
@@ -153,11 +163,133 @@ void match(std::string src, std::string tar,std::string matchName,int isUpperArm
     delete reg;
 }
 
+//从手腕到大臂的扫描，右手
+void generateTrajectory()
+{
+    pcl::PointCloud<pcl::PointXYZ>::Ptr WholeArm(new pcl::PointCloud<pcl::PointXYZ>);
+	WholeArm=getCloudFromText("segedArm.txt");
+
+	pcl::PointCloud<pcl::PointXYZ>::Ptr vesselCloud(new pcl::PointCloud<pcl::PointXYZ>);
+	vesselCloud=getCloudFromText("result.txt");
+        
+    pcl::search::KdTree<pcl::PointXYZ>::Ptr tree(new pcl::search::KdTree<pcl::PointXYZ>());
+
+	pcl::NormalEstimationOMP<pcl::PointXYZ, pcl::Normal> ne;
+	ne.setInputCloud(vesselCloud);
+	ne.setSearchSurface(WholeArm);
+	ne.setSearchMethod(tree);
+	ne.setRadiusSearch(10);
+	pcl::PointCloud<pcl::Normal>::Ptr normals(new pcl::PointCloud<pcl::Normal>);
+	ne.compute(*normals);
+
+    std::vector<Eigen::Vector3f> vec_y;//y
+	std::vector<float> distance;
+	for (size_t i = 0; i < vesselCloud->size()-1; i++)
+	{
+		Eigen::Vector3f v;
+		v<<vesselCloud->points[i+1].x-vesselCloud->points[i].x,
+		vesselCloud->points[i+1].y-vesselCloud->points[i].y,
+		vesselCloud->points[i+1].z-vesselCloud->points[i].z;
+		distance.push_back(v.norm());
+		v.normalize();
+		vec_y.push_back(v);
+	}
+
+	std::vector<Eigen::Vector3f> vecz_;//z'
+	for (size_t i = 0; i < vesselCloud->size()-1; i++)
+	{
+		Eigen::Vector3f v;
+		v<<normals->at(i).normal_x,normals->at(i).normal_y,normals->at(i).normal_z;
+		vecz_.push_back(v);
+	}
+
+    std::vector<Eigen::Vector3f> vec_x;//x
+	for (size_t i = 0; i < vec_y.size(); i++)
+	{
+		vec_x.push_back(vec_y[i].cross(vecz_[i]));
+	}
+
+	std::vector<Eigen::Vector3f> vec_z;//z
+	for (size_t i = 0; i < vec_y.size(); i++)
+	{
+		vec_z.push_back(vec_x[i].cross(vec_y[i]));
+	}
+
+    std::ofstream trajectoryfile("trajectory.txt");
+    for (size_t i = 0; i < vec_y.size(); i++)
+    {
+        trajectoryfile<<vec_x[i][0]<<" "<<vec_x[i][0]<<" "<<vec_x[i][0]<<" "<<vesselCloud->points[0].x;
+        trajectoryfile<<vec_x[i][1]<<" "<<vec_x[i][1]<<" "<<vec_x[i][1]<<" "<<vesselCloud->points[0].y;
+        trajectoryfile<<vec_x[i][2]<<" "<<vec_x[i][2]<<" "<<vec_x[i][2]<<" "<<vesselCloud->points[0].z;
+        trajectoryfile<<0<<" "<<0<<" "<<0<<1<<std::endl;
+    }
+
+    //-----------------------visualization------------------------
+
+    pcl::PointCloud<pcl::PointXYZ>::Ptr TX(new pcl::PointCloud<pcl::PointXYZ>);
+    pcl::PointCloud<pcl::PointXYZ>::Ptr TY(new pcl::PointCloud<pcl::PointXYZ>);
+    pcl::PointCloud<pcl::PointXYZ>::Ptr TZ(new pcl::PointCloud<pcl::PointXYZ>);
+	int scale=4;
+    for (size_t i = 0; i < vec_x.size(); i++)
+    {
+        pcl::PointXYZ px;
+        px.x = vesselCloud->points[i].x + scale*vec_x[i](0);
+        px.y = vesselCloud->points[i].y + scale*vec_x[i](1);
+        px.z = vesselCloud->points[i].z + scale*vec_x[i](2);
+        TX->push_back(px);
+        pcl::PointXYZ py;
+        py.x = vesselCloud->points[i].x + scale*vec_y[i](0);
+        py.y = vesselCloud->points[i].y + scale*vec_y[i](1);
+        py.z = vesselCloud->points[i].z + scale*vec_y[i](2);
+        TY->push_back(py);
+        pcl::PointXYZ pz;
+        pz.x = vesselCloud->points[i].x + scale*vec_z[i](0);
+        pz.y = vesselCloud->points[i].y + scale*vec_z[i](1);
+        pz.z = vesselCloud->points[i].z + scale*vec_z[i](2);
+        TZ->push_back(pz);
+    }
+
+    boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer(new pcl::visualization::PCLVisualizer("Normal viewer"));
+    //设置背景颜色
+    viewer->setBackgroundColor(0.3, 0.3, 0.3);
+    viewer->addText("Normal", 10, 10, "text");
+    //设置点云颜色
+
+    pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> arm_color(WholeArm, 125, 125, 125);
+    pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> vessel_color(vesselCloud, 255, 0, 255);
+    pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> x_color(TX, 255, 0, 0);
+    pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> y_color(TY, 0, 255, 0);
+    pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> z_color(TZ, 0, 0, 255);
+
+    //添加坐标系
+    //viewer->addCoordinateSystem(0.1);
+    viewer->addPointCloud<pcl::PointXYZ>(WholeArm, arm_color, "arm");
+    viewer->addPointCloud<pcl::PointXYZ>(vesselCloud, vessel_color, "vessel");
+    viewer->addPointCloud<pcl::PointXYZ>(TX, x_color, "x");
+    viewer->addPointCloud<pcl::PointXYZ>(TY, y_color, "y");
+    viewer->addPointCloud<pcl::PointXYZ>(TZ, z_color, "z");
+
+    viewer->addPointCloudNormals<pcl::PointXYZ, pcl::Normal>(vesselCloud, normals, 1, 10, "normals");
+
+    //设置点云大小
+    viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 1, "arm");
+    viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 5, "vessel");
+    viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 5, "x");
+    viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 5, "y");
+    viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 5, "z");
+    while (!viewer->wasStopped())
+    {
+        viewer->spinOnce(100);
+        // boost::this_thread::sleep(boost::posix_time::microseconds(100000));
+    }
+}
+
 int main()
 {
     work();
     match("AtlasUpper.obj","segedArm1.ply","Upper",1);
     match("AtlasLower.obj","segedArm2.ply","Lower",0);
     workutils::fitSpline();
+    generateTrajectory();
     return 0;
 }
