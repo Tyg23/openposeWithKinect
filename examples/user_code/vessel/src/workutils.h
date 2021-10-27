@@ -88,7 +88,7 @@ void workutils::LocateVesselOnSurface()
 {
     OpenMesh::IO::Options opt_read = OpenMesh::IO::Options::VertexNormal;
     OpenMesh::TriMesh_ArrayKernelT<> src;
-    OpenMesh::IO::read_mesh(src,"arm3.obj");
+    OpenMesh::IO::read_mesh(src,"6.obj");
     int n = src.n_vertices();
     std::cout<<"n::"<<n<<std::endl;
     MatrixXX src_points;
@@ -104,7 +104,7 @@ void workutils::LocateVesselOnSurface()
     KDtree* srctree=new KDtree(src_points);
     Json::Value root;
     Json::Reader reader;
-    std::ifstream ifs("Centerline curve.json");
+    std::ifstream ifs("Centerline curve (0).mrk.json");
     if(!reader.parse(ifs,root))
     {
         std::cout<<"fail to open json"<<std::endl;
@@ -126,7 +126,7 @@ void workutils::LocateVesselOnSurface()
             p[2]=points[i]["position"][2].asFloat();
             selectpoint.push_back(p);
         }
-        std::ofstream file4("vessel2.txt");
+        std::ofstream file4("vessel4.txt");
         for (size_t i = 0; i < points.size(); i++)
         {
             for (size_t j = 0; j < 3; j++)
@@ -149,7 +149,7 @@ void workutils::LocateVesselOnSurface()
                   
         }
         std::cout<<src.point(src.vertex_handle(1)).data()[0]<<std::endl;
-        std::ofstream file3("vessel.txt");
+        std::ofstream file3("vessel5.txt");
         for (size_t i = 0; i < points.size(); i++)
         {
             for (size_t j = 0; j < 3; j++)

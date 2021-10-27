@@ -216,12 +216,14 @@ void generateTrajectory()
 	}
 
     std::ofstream trajectoryfile("trajectory.txt");
+    std::ofstream distancefile("distance.txt");
     for (size_t i = 0; i < vec_y.size(); i++)
     {
-        trajectoryfile<<vec_x[i][0]<<" "<<vec_x[i][0]<<" "<<vec_x[i][0]<<" "<<vesselCloud->points[0].x;
-        trajectoryfile<<vec_x[i][1]<<" "<<vec_x[i][1]<<" "<<vec_x[i][1]<<" "<<vesselCloud->points[0].y;
-        trajectoryfile<<vec_x[i][2]<<" "<<vec_x[i][2]<<" "<<vec_x[i][2]<<" "<<vesselCloud->points[0].z;
-        trajectoryfile<<0<<" "<<0<<" "<<0<<1<<std::endl;
+        trajectoryfile<<vec_x[i][0]<<" "<<vec_x[i][0]<<" "<<vec_x[i][0]<<" "<<vesselCloud->points[0].x<<" ";
+        trajectoryfile<<vec_x[i][1]<<" "<<vec_x[i][1]<<" "<<vec_x[i][1]<<" "<<vesselCloud->points[0].y<<" ";
+        trajectoryfile<<vec_x[i][2]<<" "<<vec_x[i][2]<<" "<<vec_x[i][2]<<" "<<vesselCloud->points[0].z<<" ";
+        trajectoryfile<<0<<" "<<0<<" "<<0<<" "<<1<<std::endl;
+        distancefile<<distance[i]<<std::endl;
     }
 
     //-----------------------visualization------------------------
@@ -291,5 +293,6 @@ int main()
     match("AtlasLower.obj","segedArm2.ply","Lower",0);
     workutils::fitSpline();
     generateTrajectory();
+    // workutils::LocateVesselOnSurface();
     return 0;
 }
