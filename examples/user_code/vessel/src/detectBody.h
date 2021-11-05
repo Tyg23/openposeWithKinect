@@ -33,6 +33,10 @@ DEFINE_bool(no_display,                 false,
     "Enable to disable the visual display.");
 
 std::vector<k4a_float2_t> pixels;
+//1080p
+const int image_w=1920;
+const int image_h=1080;
+
 
 // This worker will just read and return all the jpg files in a directory
 void display(const std::shared_ptr<std::vector<std::shared_ptr<op::Datum>>>& datumsPtr)
@@ -163,6 +167,7 @@ float getSlope(const k4a_float2_t p1,const k4a_float2_t p2)
 {
     float k;
     k=(p1.xy.y-p2.xy.y)/(p1.xy.x-p2.xy.x);
+    std::cout<<"斜率："<<k<<std::endl;
     return k;
 }
 
@@ -180,7 +185,7 @@ float getDiv(std::queue<k4a_float2_t> pixels,cv::Mat img)
     float div=0;
     // for (size_t i = 0; i < 3; i++)
     // {
-        if (pixels.back().xy.y > 0 && pixels.back().xy.y < 720 && pixels.back().xy.x < 1280 && pixels.back().xy.x > 0)
+        if (pixels.back().xy.y > 0 && pixels.back().xy.y < image_h && pixels.back().xy.x < image_w && pixels.back().xy.x > 0)
         {
             // div += img.at<cv::Vec3b>(pixels.back().xy.y, pixels.back().xy.x)[i] - img.at<cv::Vec3b>(pixels.front().xy.y, pixels.front().xy.x)[i];
             div = img.at<uint16_t>(pixels.back().xy.y, pixels.back().xy.x) - img.at<uint16_t>(pixels.front().xy.y, pixels.front().xy.x);
@@ -195,7 +200,7 @@ float getDiv(std::queue<k4a_float2_t> pixels,cv::Mat img)
     return div;
 }
 
-std::vector<k4a_float2_t> findPixels(std::vector<k4a_float2_t> armCenterLine,float Slope, int threshold,cv::Mat src,int d)
+std::vector<k4a_float2_t> findPixels(std::vector<k4a_float2_t> armCenterLine,float Slope, int threshold,cv::Mat src,int d,int &length)
 {
     std::vector<k4a_float2_t> segPixels;
     int plk=2;
@@ -224,7 +229,13 @@ std::vector<k4a_float2_t> findPixels(std::vector<k4a_float2_t> armCenterLine,flo
                 segPixels.push_back(p);
                 pixels.pop();
                 n += 0.2;
+
+                if(i==1)
+                {
+                    length++;
+                }
             }
+
             distance.push(dis);
             continue;
         }
@@ -299,29 +310,123 @@ std::vector<k4a_float2_t> segmentPixels(std::vector<k4a_float2_t> featurePixels,
     float k22 = -1 / k2;
     std::vector<k4a_float2_t> segPixels;//分割后的像素
 
+    //此处手臂摆放角度有影响
+    int length[4]={0,0,0,0}; 
+    std::vector<k4a_float2_t> segPixels1=findPixels(armCenterLine1,k11,threshold+15,sobelDst,1,length[0]);
+    std::vector<k4a_float2_t> segPixels2=findPixels(armCenterLine1,k11,threshold+15,sobelDst,-1,length[1]);
+    std::vector<k4a_float2_t> segPixels3=findPixels(armCenterLine2,k22,threshold,sobelDst,1,length[2]);
+    std::vector<k4a_float2_t> segPixels4=findPixels(armCenterLine2,k22,threshold,sobelDst,-1,length[3]);
 
-    std::vector<k4a_float2_t> segPixels1=findPixels(armCenterLine1,k11,threshold+15,sobelDst,1);
-    std::vector<k4a_float2_t> segPixels2=findPixels(armCenterLine1,k11,threshold+15,sobelDst,-1);
-    std::vector<k4a_float2_t> segPixels3=findPixels(armCenterLine2,k22,threshold,sobelDst,1);
-    std::vector<k4a_float2_t> segPixels4=findPixels(armCenterLine2,k22,threshold,sobelDst,-1);
+    k4a_float2_t p1=segPixels2[length[1]];
+    k4a_float2_t p2=segPixels4.back();
+    // float k33=(p2.xy.y-p1.xy.y)/(p2.xy.x-p1.xy.x);
+    // float b33=p1.xy.y-k33*p1.xy.x;
+    // std::cout << p1.xy.x << std::endl;
+    // std::cout << p1.xy.y<< std::endl;
+    // std::cout << p2.xy.x << std::endl;
+    // std::cout << p2.xy.y<< std::endl;
+    float boundx=0;
+    if(p1.xy.x<featurePixels[1].xy.x)
+    {
+        boundx=featurePixels[1].xy.x;
+    }
+    else
+    {
+        boundx=p1.xy.x;
+    }
+    float boundy=0;
+    if(p1.xy.y<p2.xy.y)
+    {
+        boundy=p2.xy.y;
+    }
+    else
+    {
+        boundy=p1.xy.y;
+    }
+    std::vector<k4a_float2_t> segPixels5;
+    for (float i = p2.xy.x; i < boundx; i=i+0.2)
+    {
+        for (float j = featurePixels[1].xy.y; j <boundy ; j=j+0.2)
+        {
+            // if(k11*i-j+featurePixels[1].xy.y-k11*featurePixels[1].xy.x>=0
+            // &&k22*i-j+featurePixels[1].xy.y-k22*featurePixels[1].xy.x>=0
+            // &&k33*i-j+p1.xy.y-k33*p1.xy.x<=0)
+            // {
+                k4a_float2_t p;
+                p.xy.x=i;
+                p.xy.y=j;
+                segPixels5.push_back(p);
+                // std::cout<<"i:"<<i<<" j:"<<j<<std::endl;
+            // }
+        }        
+    }
+    std::cout << segPixels5.size() << std::endl;
+    
+
 
     segPixels.insert(segPixels.end(),segPixels1.begin(),segPixels1.end());
     segPixels.insert(segPixels.end(),segPixels2.begin(),segPixels2.end());
     segPixels.insert(segPixels.end(),segPixels3.begin(),segPixels3.end());
-    segPixels.insert(segPixels.end(),segPixels4.begin(),segPixels4.end());    
-    
+    segPixels.insert(segPixels.end(),segPixels4.begin(),segPixels4.end());  
+    segPixels.insert(segPixels.end(),segPixels5.begin(),segPixels5.end());    
     std::cout << segPixels.size() << std::endl;
+
+    // std::vector<int> order;
+    // for (size_t i = 0; i < segPixels.size(); i++)
+    // {
+    //     order.push_back(i);
+    // }
+    
+    // std::sort(order.begin(),order.end(),[segPixels](int n1,int n2) -> bool { 
+    //     if(segPixels[n1].xy.x!=segPixels[n2].xy.x) 
+    //     return segPixels[n1].xy.x<segPixels[n2].xy.x; 
+    //     else
+    //     return segPixels[n1].xy.y<segPixels[n2].xy.y;        
+    //     });
+    // for (size_t i = 0; i < 10; i++)
+    // {
+    //     std::cout<<order[i]<<std::endl;
+    //     std::cout<<segPixels[order[i]].xy.x<<" "<<segPixels[order[i]].xy.y<<std::endl;
+    // }
+    
+    // for (size_t i = 0; i < segPixels.size(); i++)
+    // {
+    //     segPixels[order[i]]
+    // }
+    cv::Mat iim=cv::Mat::zeros(image_h,image_w,CV_8UC1);//用于删除重复点  
+
     for (size_t i = 0; i < segPixels.size(); i++)
     {
-        if (segPixels[i].xy.y > 0 && segPixels[i].xy.y < 720 && segPixels[i].xy.x < 1280 && segPixels[i].xy.x > 0)
+        if (segPixels[i].xy.y > 0 && segPixels[i].xy.y < image_h && segPixels[i].xy.x < image_w && segPixels[i].xy.x > 0)
+        {
             // img.at<uint16_t>(segPixels[i].xy.y, segPixels[i].xy.x) = 255;
             img.at<cv::Vec3b>(segPixels[i].xy.y, segPixels[i].xy.x)[2] = 255;
+            iim.at<cv::uint8_t>(segPixels[i].xy.y, segPixels[i].xy.x)= 255;
+        }
     }
+
+    std::vector<k4a_float2_t> segPixels6;
+    for (size_t i = 0; i < image_h; i++)
+    {
+        for (size_t j = 0; j < image_w; j++)
+        {
+            if(iim.at<cv::uint8_t>(i,j)>10)
+            {
+                k4a_float2_t p;
+                p.xy.x=j;
+                p.xy.y=i;
+                segPixels6.push_back(p);
+            }
+        }
+    }
+    std::cout << segPixels6.size() << std::endl;    
+
     // cv::namedWindow("Result", 0);
     // cv::imshow("Result", sobelDst);
     cv::imwrite("Result.jpg", img);
+    cv::imwrite("Result2.jpg", iim);
     // cv::waitKey(0);
-    return segPixels;
+    return segPixels6;
 }
 
 std::vector<k4a_float2_t> segment(cv::Mat image)
@@ -493,7 +598,7 @@ int work()
     // Configure a stream of 720P BRGA color data at 30 frames per second 设置参数
     k4a_device_configuration_t config = K4A_DEVICE_CONFIG_INIT_DISABLE_ALL;
     config.color_format = K4A_IMAGE_FORMAT_COLOR_BGRA32;
-    config.color_resolution = K4A_COLOR_RESOLUTION_720P;
+    config.color_resolution = K4A_COLOR_RESOLUTION_1080P;
     config.depth_mode = K4A_DEPTH_MODE_NFOV_UNBINNED;
     config.camera_fps = K4A_FRAMES_PER_SECOND_30;
     config.synchronized_images_only = true;
@@ -760,7 +865,7 @@ int work()
     }
 
     //从深度图里分割手臂
-    std::vector<k4a_float2_t> segedpixels=segmentPixels(pixels,cv_depthMat2,20,cvImageToProcess);
+    std::vector<k4a_float2_t> segedpixels=segmentPixels(pixels,cv_depthMat2,25,cvImageToProcess);
     // std::vector<k4a_float2_t> segedpixels=segmentPixels(pixels,cvImageToProcess,80,cvImageToProcess);
 
     //存储手臂的点云

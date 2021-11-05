@@ -200,7 +200,7 @@ void generateTrajectory()
 	{
 		Eigen::Vector3f v;
 		v<<normals->at(i).normal_x,normals->at(i).normal_y,normals->at(i).normal_z;
-		vecz_.push_back(v);
+		vecz_.push_back(-v);
 	}
 
     std::vector<Eigen::Vector3f> vec_x;//x
@@ -215,16 +215,60 @@ void generateTrajectory()
 		vec_z.push_back(vec_x[i].cross(vec_y[i]));
 	}
 
+    std::ifstream transformFile("/home/y/RosCode/catkin_ws/src/dataset/R2K.txt");
+    Eigen::Matrix4f transformation(Eigen::Matrix4f::Identity());
+    std::string line;
+    std::stringstream ss;
+    for (size_t i = 0; i < 4; i++)
+    {
+        std::getline(transformFile,line);
+        ss.clear();
+        ss.str(line);
+        for (size_t j = 0; j < 4; j++)
+        {
+            ss>>transformation(i,j);
+        }        
+    }
+
+    std::vector<Eigen::Matrix4f> poses;
     std::ofstream trajectoryfile("trajectory.txt");
     std::ofstream distancefile("distance.txt");
+    std::ofstream Eulerfile("euler.txt");
     for (size_t i = 0; i < vec_y.size(); i++)
     {
-        trajectoryfile<<vec_x[i][0]<<" "<<vec_x[i][0]<<" "<<vec_x[i][0]<<" "<<vesselCloud->points[0].x<<" ";
-        trajectoryfile<<vec_x[i][1]<<" "<<vec_x[i][1]<<" "<<vec_x[i][1]<<" "<<vesselCloud->points[0].y<<" ";
-        trajectoryfile<<vec_x[i][2]<<" "<<vec_x[i][2]<<" "<<vec_x[i][2]<<" "<<vesselCloud->points[0].z<<" ";
-        trajectoryfile<<0<<" "<<0<<" "<<0<<" "<<1<<std::endl;
+        // trajectoryfile<<vec_x[i][0]<<" "<<vec_x[i][0]<<" "<<vec_x[i][0]<<" "<<vesselCloud->points[i].x<<" ";
+        // trajectoryfile<<vec_x[i][1]<<" "<<vec_x[i][1]<<" "<<vec_x[i][1]<<" "<<vesselCloud->points[i].y<<" ";
+        // trajectoryfile<<vec_x[i][2]<<" "<<vec_x[i][2]<<" "<<vec_x[i][2]<<" "<<vesselCloud->points[i].z<<" ";
+        // trajectoryfile<<0<<" "<<0<<" "<<0<<" "<<1<<std::endl;
         distancefile<<distance[i]<<std::endl;
-    }
+        Eigen::Matrix4f pose(Eigen::Matrix4f::Identity());
+        for (size_t k = 0; k < 3; k++)
+        {
+            pose(k,0)=vec_x[i][k];
+            pose(k,1)=vec_y[i][k];
+            pose(k,2)=vec_z[i][k];
+        }
+        pose(0,3)=vesselCloud->points[i].x;
+        pose(1,3)=vesselCloud->points[i].y;
+        pose(2,3)=vesselCloud->points[i].z;
+
+        pose=transformation.inverse()*pose;
+        Eigen::Quaternionf q(pose.block<3,3>(0,0));
+
+        Eigen::Vector3f eulerAngle=pose.block<3,3>(0,0).eulerAngles(0,1,2);
+
+        trajectoryfile<<pose(0,3)/1000<<" "<<pose(1,3)/1000<<" "<<pose(2,3)/1000
+        <<" "<<q.x()<<" "<<q.y()<<" "<<q.z()<<" "<<q.w()<<std::endl;
+
+
+        Eulerfile<<pose(0,3)<<" "<<pose(1,3)<<" "<<pose(2,3)
+        <<" "<<eulerAngle(0)<<" "<<eulerAngle(1)<<" "<<eulerAngle(2)<<std::endl;
+
+        poses.push_back(pose);
+    } 
+
+
+
 
     //-----------------------visualization------------------------
 
@@ -250,6 +294,30 @@ void generateTrajectory()
         pz.z = vesselCloud->points[i].z + scale*vec_z[i](2);
         TZ->push_back(pz);
     }
+
+
+    // for (size_t i = 0; i < vec_x.size(); i++)
+    // {
+    //     pcl::PointXYZ px;
+    //     px.x = poses[i](0,3) + poses[i](0,0);
+    //     px.y = poses[i](1,3) + poses[i](1,0);
+    //     px.z = poses[i](2,3) + poses[i](2,0);
+    //     TX->push_back(px);
+    //     pcl::PointXYZ py;
+    //     py.x = poses[i](0,3) + poses[i](0,1);
+    //     py.y = poses[i](1,3) + poses[i](1,1);
+    //     py.z = poses[i](2,3) + poses[i](2,1);
+    //     TY->push_back(py);
+    //     pcl::PointXYZ pz;
+    //     pz.x = poses[i](0,3) + poses[i](0,2);
+    //     pz.y = poses[i](1,3) + poses[i](1,2);
+    //     pz.z = poses[i](2,3) + poses[i](2,2);
+    //     TZ->push_back(pz);
+    // }
+
+    pcl::io::savePLYFile("x.txt",*TX);
+    pcl::io::savePLYFile("y.txt",*TY);
+    pcl::io::savePLYFile("z.txt",*TZ);
 
     boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer(new pcl::visualization::PCLVisualizer("Normal viewer"));
     //设置背景颜色
