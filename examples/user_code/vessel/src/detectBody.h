@@ -53,7 +53,7 @@ void display(const std::shared_ptr<std::vector<std::shared_ptr<op::Datum>>>& dat
             if (!cvMat.empty())
             {
                 // cv::imshow(OPEN_POSE_NAME_AND_VERSION + " - Tutorial C++ API", cvMat);
-                cv::imwrite("dectedPic.jpg",cvMat);
+                cv::imwrite("./result/dectedPic.jpg",cvMat);
                 // cv::waitKey(0);
             }
             else
@@ -255,7 +255,7 @@ std::vector<k4a_float2_t> findPixels(std::vector<k4a_float2_t> armCenterLine,flo
             {
                 break;
             }
-            if (!(p.xy.y > 0 && p.xy.y < 720 && p.xy.x < 1280 && p.xy.x > 0))
+            if (!(p.xy.y > 0 && p.xy.y < image_h && p.xy.x < image_w && p.xy.x > 0))
             {
                 break;
             }
@@ -267,7 +267,7 @@ std::vector<k4a_float2_t> findPixels(std::vector<k4a_float2_t> armCenterLine,flo
     return segPixels;
 }
 
-std::vector<k4a_float2_t> segmentPixels(std::vector<k4a_float2_t> featurePixels,cv::Mat src,int threshold,cv::Mat img)
+std::vector<k4a_float2_t> segmentPixels(std::vector<k4a_float2_t> featurePixels,cv::Mat src,int threshold,cv::Mat img,cv::Mat depthImage)
 {
     cv::Mat grad_x, grad_y;
     cv::Mat abs_grad_x, abs_grad_y, sobelDst;
@@ -317,50 +317,52 @@ std::vector<k4a_float2_t> segmentPixels(std::vector<k4a_float2_t> featurePixels,
     std::vector<k4a_float2_t> segPixels3=findPixels(armCenterLine2,k22,threshold,sobelDst,1,length[2]);
     std::vector<k4a_float2_t> segPixels4=findPixels(armCenterLine2,k22,threshold,sobelDst,-1,length[3]);
 
-    k4a_float2_t p1=segPixels2[length[1]];
-    k4a_float2_t p2=segPixels4.back();
-    // float k33=(p2.xy.y-p1.xy.y)/(p2.xy.x-p1.xy.x);
-    // float b33=p1.xy.y-k33*p1.xy.x;
-    // std::cout << p1.xy.x << std::endl;
-    // std::cout << p1.xy.y<< std::endl;
-    // std::cout << p2.xy.x << std::endl;
-    // std::cout << p2.xy.y<< std::endl;
-    float boundx=0;
-    if(p1.xy.x<featurePixels[1].xy.x)
+    k4a_float2_t p1=segPixels1[length[0]];
+    k4a_float2_t p2=segPixels3.back();
+    float k33=(p2.xy.y-p1.xy.y)/(p2.xy.x-p1.xy.x);
+    float b33=p1.xy.y-k33*p1.xy.x;
+    std::cout << p1.xy.x << std::endl;
+    std::cout << p1.xy.y<< std::endl;
+    std::cout << p2.xy.x << std::endl;
+    std::cout << p2.xy.y<< std::endl;
+    float boundminx=0;
+    float boundmaxx=p1.xy.x;
+    float boundminy=featurePixels[1].xy.y;
+    float boundmaxy=0;
+    if(p2.xy.x>featurePixels[1].xy.x)
     {
-        boundx=featurePixels[1].xy.x;
+        boundminx=featurePixels[1].xy.x;
     }
     else
     {
-        boundx=p1.xy.x;
+        boundminx=p2.xy.x;
     }
-    float boundy=0;
     if(p1.xy.y<p2.xy.y)
     {
-        boundy=p2.xy.y;
+        boundmaxy=p2.xy.y;
     }
     else
     {
-        boundy=p1.xy.y;
+        boundmaxy=p1.xy.y;
     }
     std::vector<k4a_float2_t> segPixels5;
-    for (float i = p2.xy.x; i < boundx; i=i+0.2)
+    for (float i = boundminx; i < boundmaxx; i=i+0.2)
     {
-        for (float j = featurePixels[1].xy.y; j <boundy ; j=j+0.2)
+        for (float j = boundminy; j <boundmaxy ; j=j+0.2)
         {
-            // if(k11*i-j+featurePixels[1].xy.y-k11*featurePixels[1].xy.x>=0
-            // &&k22*i-j+featurePixels[1].xy.y-k22*featurePixels[1].xy.x>=0
-            // &&k33*i-j+p1.xy.y-k33*p1.xy.x<=0)
-            // {
+            if(k11*i-j+featurePixels[1].xy.y-k11*featurePixels[1].xy.x<=0
+            &&k22*i-j+featurePixels[1].xy.y-k22*featurePixels[1].xy.x>=0
+            &&k33*i-j+p1.xy.y-k33*p1.xy.x>=0)
+            {
                 k4a_float2_t p;
                 p.xy.x=i;
                 p.xy.y=j;
                 segPixels5.push_back(p);
                 // std::cout<<"i:"<<i<<" j:"<<j<<std::endl;
-            // }
+            }
         }        
     }
-    std::cout << segPixels5.size() << std::endl;
+    std::cout <<"segPixels5.size():"<< segPixels5.size() << std::endl;
     
 
 
@@ -401,6 +403,7 @@ std::vector<k4a_float2_t> segmentPixels(std::vector<k4a_float2_t> featurePixels,
         {
             // img.at<uint16_t>(segPixels[i].xy.y, segPixels[i].xy.x) = 255;
             img.at<cv::Vec3b>(segPixels[i].xy.y, segPixels[i].xy.x)[2] = 255;
+            depthImage.at<cv::uint16_t>(segPixels[i].xy.y, segPixels[i].xy.x) = 255;
             iim.at<cv::uint8_t>(segPixels[i].xy.y, segPixels[i].xy.x)= 255;
         }
     }
@@ -423,8 +426,9 @@ std::vector<k4a_float2_t> segmentPixels(std::vector<k4a_float2_t> featurePixels,
 
     // cv::namedWindow("Result", 0);
     // cv::imshow("Result", sobelDst);
-    cv::imwrite("Result.jpg", img);
-    cv::imwrite("Result2.jpg", iim);
+    cv::imwrite("./result/segmentedRGB.jpg", img);
+    cv::imwrite("./result/mask.jpg", iim);
+    cv::imwrite("./result/segmentedDepth.png", depthImage);
     // cv::waitKey(0);
     return segPixels6;
 }
@@ -681,7 +685,7 @@ int work()
                         (void*)k4a_image_get_buffer(color_image),cv::Mat::AUTO_STEP);
     cv::Mat cvImageToProcess;
     cv::cvtColor(cv_rgbImage_with_alpha, cvImageToProcess, cv::COLOR_BGRA2BGR);
-    cv::imwrite("pic.jpg",cvImageToProcess);//存储彩色图像
+    cv::imwrite("./result/origin_rgbpic.jpg",cvImageToProcess);//存储彩色图像
     // cv::Mat segmentedImg=segment(cvImageToProcess);
     // std::vector<k4a_float2_t> segedpixels=segment(cvImageToProcess);
 
@@ -734,7 +738,7 @@ int work()
 	}
     
     //写入不带颜色的点云
-    std::ofstream infile1("xyz.txt");
+    std::ofstream infile1("./result/xyz.txt");
 	assert(infile1.is_open());
     for (int i = 0; i < points.size(); i++)
     {
@@ -746,7 +750,7 @@ int work()
         infile1 << std::endl;
     }
 
-    std::ofstream infile2("xyzrgb.txt");
+    std::ofstream infile2("./result/xyzrgb.txt");
 	assert(infile2.is_open());
 
     //写入带颜色的点云
@@ -810,19 +814,19 @@ int work()
     cv::Mat cv_depthMat2=cv_depthimage.clone();//用于存储
     // cv::Mat cv_depthMat3=cv::Mat::zeros(color_image_height_pixels,color_image_width_pixels,CV_32FC1);//用于
     //查找最大深度
-    int depth=0;
-    int a=0;
-    for (int i = 0; i < color_image_height_pixels; i++)
-    {
-        for (int j = 0; j < color_image_width_pixels; j++)
-        {
-            // std::cout<<cv_depthimage.ptr<uint16_t>(i)[j]<<std::endl;
-            // cv_depthMat3.ptr<float>(i)[j]=cv_depthMat2.ptr<uint16_t>(i)[j];
-            a=cv_depthMat2.ptr<uint16_t>(i)[j];
-            if(a>depth)
-            depth=a;
-        }
-    }
+    // int depth=0;
+    // int a=0;
+    // for (int i = 0; i < color_image_height_pixels; i++)
+    // {
+    //     for (int j = 0; j < color_image_width_pixels; j++)
+    //     {
+    //         // std::cout<<cv_depthimage.ptr<uint16_t>(i)[j]<<std::endl;
+    //         // cv_depthMat3.ptr<float>(i)[j]=cv_depthMat2.ptr<uint16_t>(i)[j];
+    //         a=cv_depthMat2.ptr<uint16_t>(i)[j];
+    //         if(a>depth)
+    //         depth=a;
+    //     }
+    // }
     // depth/=255;
     for (int i = 0; i < color_image_height_pixels; i++)
     {
@@ -834,16 +838,17 @@ int work()
             p*=4;
             // p*=255;
             cv_depthMat2.ptr<uint16_t>(i)[j]=p;
+            cv_depthMat1.ptr<uint16_t>(i)[j]=p*8;
             // std::cout<<cv_depthMat3.ptr<float>(i)[j]<<std::endl;
         }
     }
     // std::cout<<"depth:"<<depth<<std::endl;
-    // cv::imwrite("depth.jpg",cv_depthMat2);
+    cv::imwrite("./result/depth.png",cv_depthMat1);
     // cv::imshow("depth",cv_depthimage);
     // cv::waitKey(0);
 
     //存储关节特征的三维点
-    std::ofstream infile3("featureXYZ.txt");
+    std::ofstream infile3("./result/featureXYZ.txt");
     assert(infile3.is_open());
     for (size_t i = 0; i < 3; i++)
     {
@@ -855,7 +860,7 @@ int work()
     }
 
     //存储垂线的三维点
-    std::ofstream infile4("clipXYZ.txt");
+    std::ofstream infile4("./result/clipXYZ.txt");
     assert(infile4.is_open());
     for (size_t i = 0; i < clipPixels.size(); i++)
     {
@@ -865,11 +870,11 @@ int work()
     }
 
     //从深度图里分割手臂
-    std::vector<k4a_float2_t> segedpixels=segmentPixels(pixels,cv_depthMat2,25,cvImageToProcess);
+    std::vector<k4a_float2_t> segedpixels=segmentPixels(pixels,cv_depthMat2,20,cvImageToProcess,cv_depthMat1);
     // std::vector<k4a_float2_t> segedpixels=segmentPixels(pixels,cvImageToProcess,80,cvImageToProcess);
 
     //存储手臂的点云
-    std::ofstream infile5("segedArm.txt");
+    std::ofstream infile5("./result/segedArm.txt");
     assert(infile5.is_open());
     for (size_t i = 0; i < segedpixels.size(); i++)
     {

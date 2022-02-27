@@ -20,6 +20,7 @@
 #include <pcl/features/normal_3d_omp.h>
 #include <fstream>
 #include <Eigen/Eigen>
+#include <pcl/common/centroid.h>
 
 void match(std::string src, std::string tar,std::string matchName,int isUpperArm)
 {
@@ -46,7 +47,7 @@ void match(std::string src, std::string tar,std::string matchName,int isUpperArm
 
     src_file = src;
     tar_file = tar;
-    outpath = "";
+    outpath = "./result/";
     paras.out_gt_file = outpath + matchName.c_str()+ "_res.txt";
     out_file = outpath +matchName.c_str()+ "res.obj";
     NonRigidreg *reg;
@@ -67,11 +68,11 @@ void match(std::string src, std::string tar,std::string matchName,int isUpperArm
     std::string fileName;
     if(isUpperArm==1)
     {
-        fileName="transformedTargetUpper.ply";
+        fileName="./result/transformedTargetUpper.ply";
     }
     else
     {
-        fileName="transformedTargetLower.ply";
+        fileName="./result/transformedTargetLower.ply";
     }
     workutils::read_data(fileName,tar_mesh);
     double scale = mesh_scaling(src_mesh, tar_mesh);
@@ -93,8 +94,8 @@ void match(std::string src, std::string tar,std::string matchName,int isUpperArm
     reg->DoNonRigid();
     Timer::EventID time5 = time.get_time();
 
-    std::string fileName1=matchName+"source.txt";
-    std::string fileName2=matchName+"target.txt";
+    std::string fileName1="./result/"+matchName+"source.txt";
+    std::string fileName2="./result/"+matchName+"target.txt";
     //记录点云对应关系
     std::ofstream file1(fileName1);
     std::ofstream file2(fileName2);
@@ -163,14 +164,14 @@ void match(std::string src, std::string tar,std::string matchName,int isUpperArm
     delete reg;
 }
 
-//从手腕到大臂的扫描，右手
+//从大臂到小臂的扫描，右手,y轴沿着手臂轴向
 void generateTrajectory()
 {
     pcl::PointCloud<pcl::PointXYZ>::Ptr WholeArm(new pcl::PointCloud<pcl::PointXYZ>);
-	WholeArm=getCloudFromText("segedArm.txt");
+	WholeArm=getCloudFromText("./result/segedArm.txt");
 
 	pcl::PointCloud<pcl::PointXYZ>::Ptr vesselCloud(new pcl::PointCloud<pcl::PointXYZ>);
-	vesselCloud=getCloudFromText("result.txt");
+	vesselCloud=getCloudFromText("./result/whole_vessel_trajectory.txt");
         
     pcl::search::KdTree<pcl::PointXYZ>::Ptr tree(new pcl::search::KdTree<pcl::PointXYZ>());
 
@@ -182,17 +183,17 @@ void generateTrajectory()
 	pcl::PointCloud<pcl::Normal>::Ptr normals(new pcl::PointCloud<pcl::Normal>);
 	ne.compute(*normals);
 
-    std::vector<Eigen::Vector3f> vec_y;//y
+    std::vector<Eigen::Vector3f> vec_x;//y
 	std::vector<float> distance;
-	for (size_t i = 0; i < vesselCloud->size()-1; i++)
+	for (size_t i = 1; i < vesselCloud->size()-1; i++)
 	{
 		Eigen::Vector3f v;
-		v<<vesselCloud->points[i+1].x-vesselCloud->points[i].x,
-		vesselCloud->points[i+1].y-vesselCloud->points[i].y,
-		vesselCloud->points[i+1].z-vesselCloud->points[i].z;
+		v<<vesselCloud->points[i-1].x-vesselCloud->points[i].x,
+		vesselCloud->points[i-1].y-vesselCloud->points[i].y,
+		vesselCloud->points[i-1].z-vesselCloud->points[i].z;
 		distance.push_back(v.norm());
 		v.normalize();
-		vec_y.push_back(v);
+		vec_x.push_back(-v);
 	}
 
 	std::vector<Eigen::Vector3f> vecz_;//z'
@@ -203,10 +204,10 @@ void generateTrajectory()
 		vecz_.push_back(-v);
 	}
 
-    std::vector<Eigen::Vector3f> vec_x;//x
-	for (size_t i = 0; i < vec_y.size(); i++)
+    std::vector<Eigen::Vector3f> vec_y;//x
+	for (size_t i = 0; i < vec_x.size(); i++)
 	{
-		vec_x.push_back(vec_y[i].cross(vecz_[i]));
+		vec_y.push_back(vecz_[i].cross(vec_x[i]));
 	}
 
 	std::vector<Eigen::Vector3f> vec_z;//z
@@ -231,10 +232,12 @@ void generateTrajectory()
     }
 
     std::vector<Eigen::Matrix4f> poses;
-    std::ofstream trajectoryfile("trajectory.txt");
-    std::ofstream distancefile("distance.txt");
-    std::ofstream Eulerfile("euler.txt");
-    for (size_t i = 0; i < vec_y.size(); i++)
+    std::ofstream trajectoryfile("./result/trajectory.txt");
+    std::ofstream distancefile("./result/distance.txt");
+    std::ofstream Eulerfile("./result/euler.txt");
+    // for (size_t i = vec_y.size()-30; i >5; i--)
+    for (size_t i = 30; i <vec_y.size()-5; i++)
+    // for (size_t i = 20; i <vec_y.size()-5; i++)
     {
         // trajectoryfile<<vec_x[i][0]<<" "<<vec_x[i][0]<<" "<<vec_x[i][0]<<" "<<vesselCloud->points[i].x<<" ";
         // trajectoryfile<<vec_x[i][1]<<" "<<vec_x[i][1]<<" "<<vec_x[i][1]<<" "<<vesselCloud->points[i].y<<" ";
@@ -276,6 +279,10 @@ void generateTrajectory()
     pcl::PointCloud<pcl::PointXYZ>::Ptr TY(new pcl::PointCloud<pcl::PointXYZ>);
     pcl::PointCloud<pcl::PointXYZ>::Ptr TZ(new pcl::PointCloud<pcl::PointXYZ>);
 	int scale=4;
+
+    std::ofstream xfile("./result/x.txt");
+    std::ofstream yfile("./result/y.txt");
+    std::ofstream zfile("./result/z.txt");
     for (size_t i = 0; i < vec_x.size(); i++)
     {
         pcl::PointXYZ px;
@@ -293,6 +300,9 @@ void generateTrajectory()
         pz.y = vesselCloud->points[i].y + scale*vec_z[i](1);
         pz.z = vesselCloud->points[i].z + scale*vec_z[i](2);
         TZ->push_back(pz);
+        xfile<<vec_x[i][0]<<" "<<vec_x[i][1]<<" "<<vec_x[i][2]<<std::endl;
+        yfile<<vec_y[i][0]<<" "<<vec_y[i][1]<<" "<<vec_y[i][2]<<std::endl;
+        zfile<<vec_z[i][0]<<" "<<vec_z[i][1]<<" "<<vec_z[i][2]<<std::endl;
     }
 
 
@@ -315,17 +325,17 @@ void generateTrajectory()
     //     TZ->push_back(pz);
     // }
 
-    pcl::io::savePLYFile("x.txt",*TX);
-    pcl::io::savePLYFile("y.txt",*TY);
-    pcl::io::savePLYFile("z.txt",*TZ);
+    // pcl::io::savePLYFile("./result/x.txt",*TX);
+    // pcl::io::savePLYFile("./result/y.txt",*TY);
+    // pcl::io::savePLYFile("./result/z.txt",*TZ);
 
     boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer(new pcl::visualization::PCLVisualizer("Normal viewer"));
     //设置背景颜色
-    viewer->setBackgroundColor(0.3, 0.3, 0.3);
+    viewer->setBackgroundColor(0.2, 0.2, 0.2);
     viewer->addText("Normal", 10, 10, "text");
     //设置点云颜色
 
-    pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> arm_color(WholeArm, 125, 125, 125);
+    pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> arm_color(WholeArm, 150, 150, 150);
     pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> vessel_color(vesselCloud, 255, 0, 255);
     pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> x_color(TX, 255, 0, 0);
     pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> y_color(TY, 0, 255, 0);
@@ -347,6 +357,16 @@ void generateTrajectory()
     viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 5, "x");
     viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 5, "y");
     viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 5, "z");
+
+    viewer->initCameraParameters ();
+    // pcl::CentroidPoint<pcl::PointXYZ> centroid;
+    // for(auto i=0;i<WholeArm->size();i++)
+    // {
+    //     centroid.add (WholeArm->points[i]);
+    // }
+    // pcl::PointXYZ c1;
+    // centroid.get (c1);
+    // viewer->setCameraPosition(c1.x,c1.y,c1.z, 0,0,0,0,0,1);
     while (!viewer->wasStopped())
     {
         viewer->spinOnce(100);
@@ -357,10 +377,9 @@ void generateTrajectory()
 int main()
 {
     work();
-    match("AtlasUpper.obj","segedArm1.ply","Upper",1);
-    match("AtlasLower.obj","segedArm2.ply","Lower",0);
+    match("./template/AtlasUpper.obj","./result/segedArm1.ply","Upper",1);
+    match("./template/AtlasLower.obj","./result/segedArm2.ply","Lower",0);
     workutils::fitSpline();
     generateTrajectory();
-    // workutils::LocateVesselOnSurface();
     return 0;
 }

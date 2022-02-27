@@ -173,17 +173,17 @@ void workutils::LocateTrajectoryOnSurface(int isUpperArm)
     std::string fileNameVessel;
     if(isUpperArm==1)
     {
-        fileNamesrc="Uppersource.txt";
-        fileNametar="Uppertarget.txt";
-        fileNameRes="UpperResult.txt";
-        fileNameVessel="UpperVessel.xyz";
+        fileNamesrc="./result/Uppersource.txt";
+        fileNametar="./result/Uppertarget.txt";
+        fileNameRes="./result/UpperResult.txt";
+        fileNameVessel="./template/UpperVessel.xyz";
     }
     else
     {
-        fileNamesrc="Lowersource.txt";
-        fileNametar="Lowertarget.txt";
-        fileNameRes="LowerResult.txt";
-        fileNameVessel="LowerVessel.xyz";
+        fileNamesrc="./result/Lowersource.txt";
+        fileNametar="./result/Lowertarget.txt";
+        fileNameRes="./result/LowerResult.txt";
+        fileNameVessel="./template/LowerVessel.xyz";
     }
     src_points=loadPointsfromTxt(fileNamesrc);
     KDtree* srctree=new KDtree(src_points);
@@ -327,7 +327,7 @@ Eigen::Matrix4f workutils::RodriguesMatrixTranslation(Eigen::Vector3f n, double 
 Eigen::Matrix4f workutils::initialAlign(std::string PLYfilename,int isUpperArm)
 {
     pcl::PointCloud<pcl::PointXYZ>::Ptr cloud;
-    std::ifstream file1("sourcefeature.txt");
+    std::ifstream file1("./template/sourcefeature.txt");
     std::string line;
     Eigen::Matrix3f psrc;
     for (size_t i = 0; i < 3; i++)
@@ -340,7 +340,7 @@ Eigen::Matrix4f workutils::initialAlign(std::string PLYfilename,int isUpperArm)
         } 
     }
 
-    std::ifstream file2("featureXYZ.txt");
+    std::ifstream file2("./result/featureXYZ.txt");
     Eigen::Matrix3f ptar;
     for (size_t i = 0; i < 3; i++)
     {
@@ -404,11 +404,11 @@ Eigen::Matrix4f workutils::initialAlign(std::string PLYfilename,int isUpperArm)
     std::string fileName;
     if(isUpperArm==1)
     {
-        fileName="transformedTargetUpper.ply";
+        fileName="./result/transformedTargetUpper.ply";
     }
     else
     {
-        fileName="transformedTargetLower.ply";
+        fileName="./result/transformedTargetLower.ply";
     }
     plywriter.write(fileName,*transformedCloud);
     Eigen::Matrix4f transform(Eigen::Matrix4f::Identity());
@@ -435,7 +435,7 @@ bool workutils::fitSpline()
     vtkSmartPointer<vtkPoints> points =
         vtkSmartPointer<vtkPoints>::New();
 
-    std::fstream file1("LowerResult.txt");
+    std::fstream file1("./result/UpperResult.txt");
     std::string line;
     std::stringstream ss;
     while (getline(file1, line))
@@ -446,7 +446,7 @@ bool workutils::fitSpline()
         ss >> p[0] >> p[1] >> p[2];
         points->InsertNextPoint(p);
     }    
-    std::fstream file2("UpperResult.txt");
+    std::fstream file2("./result/LowerResult.txt");
     while (getline(file2, line))
     {
         ss.clear();
@@ -472,14 +472,14 @@ bool workutils::fitSpline()
     vtkSmartPointer<vtkParametricFunctionSource> functionSource =
         vtkSmartPointer<vtkParametricFunctionSource>::New();
     functionSource->SetParametricFunction(spline);
-    functionSource->SetUResolution(30);
+    functionSource->SetUResolution(60);
     functionSource->SetVResolution(10000);
     functionSource->SetWResolution(10000);
     functionSource->Update();
 
     //保存数据
 	auto Writer = vtkSmartPointer<vtkPolyDataWriter>::New();
-	Writer->SetFileName("1.vtk");
+	Writer->SetFileName("./result/spline.vtk");
 	Writer->SetInputData(functionSource->GetOutput());//vtkPolyData
 	Writer->Write();
 
@@ -526,14 +526,14 @@ bool workutils::fitSpline()
     // renderWindow->Render();
     // renderWindowInteractor->Start();
 
-    std::fstream vtkfile("1.vtk");
+    std::fstream vtkfile("./result/spline.vtk");
     for (size_t i = 0; i < 5; i++)
     {
         getline(vtkfile,line);
     }
-    std::ofstream txtfile("result.txt");
+    std::ofstream txtfile("./result/whole_vessel_trajectory.txt");
     std::vector<float> Vpoints;
-    for (size_t i = 0; i < 11; i++)
+    for (size_t i = 0; i < 20; i++)
     {
         getline(vtkfile,line);
         ss.clear();
@@ -544,10 +544,26 @@ bool workutils::fitSpline()
             Vpoints.push_back(p);
         }
     }
+    std::vector<std::vector<float>> V3points;
     for (size_t i = 0; i < Vpoints.size(); i+=3)
     {
-        txtfile<<Vpoints[i]<<" "<<Vpoints[i+1]<<" "<<Vpoints[i+2]<<std::endl;
-    } 
+        std::vector<float> point;
+        point.push_back(Vpoints[i]);
+        point.push_back(Vpoints[i+1]);
+        point.push_back(Vpoints[i+2]);
+        V3points.push_back(point);
+    }
+    // std::reverse(V3points.begin(), V3points.end());
+
+    for (size_t i = 0; i < V3points.size(); i++)
+    {
+        txtfile<<V3points[i][0]<<" "<<V3points[i][1]<<" "<<V3points[i][2]<<std::endl;
+    }
+    
+    // for (size_t i = 0; i < Vpoints.size(); i+=3)
+    // {
+    //     txtfile<<Vpoints[i]<<" "<<Vpoints[i+1]<<" "<<Vpoints[i+2]<<std::endl;
+    // } 
     return true;
 }
 

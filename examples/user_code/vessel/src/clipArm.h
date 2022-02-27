@@ -53,10 +53,10 @@ bool clip()
     pcl::PointCloud<pcl::PointXYZ>::Ptr cloud2(new pcl::PointCloud<pcl::PointXYZ>);
     pcl::PointCloud<pcl::PointXYZ>::Ptr cloud3(new pcl::PointCloud<pcl::PointXYZ>);
     pcl::PointCloud<pcl::PointXYZ>::Ptr cloud4(new pcl::PointCloud<pcl::PointXYZ>);
-    cloud=getCloudFromText("segedArm.txt");
+    cloud=getCloudFromText("./result/segedArm.txt");
 
 
-    std::ifstream file("clipXYZ.txt");
+    std::ifstream file("./result/clipXYZ.txt");
     assert(file.is_open());
     std::string line;
     int n=0;
@@ -175,8 +175,8 @@ bool clip()
         }
     }
 
-    pcl::io::savePLYFile("segedArm1.ply",*segedcloud);
-    pcl::io::savePLYFile("segedArm2.ply",*segedcloud2);
+    pcl::io::savePLYFile("./result/segedArm1.ply",*segedcloud);
+    pcl::io::savePLYFile("./result/segedArm2.ply",*segedcloud2);
     return true;
 }
     
